@@ -10,15 +10,21 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: "mysql",
+    dialect: "postgres",  // ← CHANGED from mysql to postgres
     dialectOptions: {
       ssl: {
         require: true,
         rejectUnauthorized: false,
+        ca: Buffer.from(process.env.DB_CA_CERT, "base64").toString("utf-8"),
       },
     },
     logging: false,
   }
 );
+
+sequelize
+  .authenticate()
+  .then(() => console.log("✅ Aiven PostgreSQL connected successfully"))
+  .catch((err) => console.error("❌ DB connection failed:", err));
 
 export default sequelize;
