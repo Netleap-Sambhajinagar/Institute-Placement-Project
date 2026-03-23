@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -50,7 +50,7 @@ const normalizeInternship = (internship) => ({
   categoryValue: internship.category || "Paid",
 });
 
-export default function Internships() {
+function Internships() {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
@@ -279,187 +279,232 @@ export default function Internships() {
         </motion.button>
       </div>
 
-      {showForm && (
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-title"
-              className="text-sm font-medium text-gray-700"
-            >
-              Position
-            </label>
-            <input
-              id="internship-title"
-              ref={titleInputRef}
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="Position"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-duration"
-              className="text-sm font-medium text-gray-700"
-            >
-              Duration (Months)
-            </label>
-            <input
-              id="internship-duration"
-              type="number"
-              name="duration"
-              value={formData.duration}
-              onChange={handleChange}
-              placeholder="Duration (in months)"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-category"
-              className="text-sm font-medium text-gray-700"
-            >
-              Category
-            </label>
-            <select
-              id="internship-category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
-            >
-              <option value="Paid">Paid</option>
-              <option value="Unpaid">Unpaid</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-work-type"
-              className="text-sm font-medium text-gray-700"
-            >
-              Work Type
-            </label>
-            <input
-              id="internship-work-type"
-              type="text"
-              name="workType"
-              value={formData.workType}
-              onChange={handleChange}
-              placeholder="Work Type (On-site/Remote/Hybrid)"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-stipend"
-              className="text-sm font-medium text-gray-700"
-            >
-              Stipend
-            </label>
-            <input
-              id="internship-stipend"
-              type="number"
-              name="stipend"
-              value={formData.stipend}
-              onChange={handleChange}
-              placeholder="Stipend"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-branch"
-              className="text-sm font-medium text-gray-700"
-            >
-              Branch
-            </label>
-            <input
-              id="internship-branch"
-              type="text"
-              name="branch"
-              value={formData.branch}
-              onChange={handleChange}
-              placeholder="Branch"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-start-date"
-              className="text-sm font-medium text-gray-700"
-            >
-              Start Date
-            </label>
-            <input
-              id="internship-start-date"
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="internship-status"
-              className="text-sm font-medium text-gray-700"
-            >
-              Status
-            </label>
-            <select
-              id="internship-status"
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
-            >
-              <option value="Open">Open</option>
-              <option value="Closed">Closed</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2 lg:col-span-3 flex gap-3">
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
-            >
-              {isEditing ? "Update Internship" : "Save Internship"}
-            </motion.button>
-
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="button"
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <motion.div
+              className="fixed inset-0 bg-slate-900/45 z-40"
+              variants={modalBackdropVariants}
               onClick={() => {
                 setShowForm(false);
                 setEditingId(null);
                 setFormData(initialForm);
               }}
-              className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors"
+              aria-hidden="true"
+            />
+
+            <motion.div
+              variants={modalPanelVariants}
+              className="relative z-50 w-full max-w-5xl bg-white rounded-xl border border-gray-100 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              Cancel
-            </motion.button>
-          </div>
-        </form>
-      )}
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {isEditing ? "Edit Internship" : "Add Internship"}
+                </h3>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setFormData(initialForm);
+                  }}
+                  className="text-sm px-3 py-1.5 border border-gray-300 hover:bg-gray-100 rounded-sm cursor-pointer"
+                >
+                  Close
+                </motion.button>
+              </div>
+
+              <form
+                ref={formRef}
+                onSubmit={handleSubmit}
+                className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-title"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Position
+                  </label>
+                  <input
+                    id="internship-title"
+                    ref={titleInputRef}
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="Position"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-duration"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Duration (Months)
+                  </label>
+                  <input
+                    id="internship-duration"
+                    type="number"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleChange}
+                    placeholder="Duration (in months)"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-category"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Category
+                  </label>
+                  <select
+                    id="internship-category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-work-type"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Work Type
+                  </label>
+                  <select
+                    id="internship-work-type"
+                    name="workType"
+                    value={formData.workType}
+                    onChange={handleChange}
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+                    required
+                  >
+                    <option value="On-site">On-site</option>
+                    <option value="Remote">Remote</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-stipend"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Stipend
+                  </label>
+                  <input
+                    id="internship-stipend"
+                    type="number"
+                    name="stipend"
+                    value={formData.stipend}
+                    onChange={handleChange}
+                    placeholder="Stipend"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-branch"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Branch
+                  </label>
+                  <input
+                    id="internship-branch"
+                    type="text"
+                    name="branch"
+                    value={formData.branch}
+                    onChange={handleChange}
+                    placeholder="Branch"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-start-date"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Start Date
+                  </label>
+                  <input
+                    id="internship-start-date"
+                    type="date"
+                    name="startDate"
+                    value={formData.startDate}
+                    onChange={handleChange}
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="internship-status"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Status
+                  </label>
+                  <select
+                    id="internship-status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
+                  >
+                    <option value="Open">Open</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-3 flex gap-3 justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingId(null);
+                      setFormData(initialForm);
+                    }}
+                    className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors rounded-sm cursor-pointer"
+                  >
+                    Cancel
+                  </motion.button>
+
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="submit"
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
+                  >
+                    {isEditing ? "Update Internship" : "Save Internship"}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="bg-white p-5 rounded-none shadow-sm border border-gray-100 flex gap-4 items-center flex-wrap">
         <input
@@ -654,3 +699,5 @@ export default function Internships() {
     </div>
   );
 }
+
+export default memo(Internships);

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   createCourse,
   deleteCourse,
@@ -26,10 +26,9 @@ const emptyForm = {
   title: "",
   instructor: "",
   level: "Beginner",
+  category: "Paid",
   status: "Active",
   duration: "",
-  rating: "",
-  reviews: "",
   fees: "",
   imageUrl: "",
   overview: "",
@@ -42,10 +41,9 @@ const toPayload = (form) => ({
   instructor: form.instructor,
   instructorRole: "",
   level: form.level,
+  domain: form.category,
   duration: form.duration,
   hours: "",
-  rating: Number(form.rating) || 0,
-  reviews: Number(form.reviews) || 0,
   fees: Number(form.fees) || 0,
   students: 0,
   status: form.status || "Active",
@@ -65,10 +63,9 @@ const toFormState = (course) => ({
   title: course.title || "",
   instructor: course.instructor || "",
   level: course.level || "Beginner",
+  category: course.domain || course.branch || "Paid",
   status: course.status || "Active",
   duration: course.duration || "",
-  rating: course.rating ?? "",
-  reviews: course.reviews ?? "",
   fees: course.fees ?? "",
   imageUrl: course.imageUrl || "",
   overview: course.overview || "",
@@ -76,7 +73,7 @@ const toFormState = (course) => ({
   includesText: (course.includes || []).join("\n"),
 });
 
-export default function Courses() {
+function Courses() {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const courses = useSelector(selectCourseList);
@@ -90,6 +87,7 @@ export default function Courses() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [formState, setFormState] = useState(emptyForm);
   const [submitError, setSubmitError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -167,6 +165,14 @@ export default function Courses() {
     setSubmitError("");
   };
 
+  const onOpenDeleteModal = (course) => {
+    setDeleteTarget({ id: course.id, title: course.title || "this course" });
+  };
+
+  const onCloseDeleteModal = () => {
+    setDeleteTarget(null);
+  };
+
   const onChangeField = (event) => {
     const { name, value } = event.target;
     setFormState((prev) => ({ ...prev, [name]: value }));
@@ -203,14 +209,14 @@ export default function Courses() {
     }
   };
 
-  const onDelete = async (courseId) => {
-    const confirmed = window.confirm("Delete this course?");
-    if (!confirmed) return;
+  const onDelete = async () => {
+    if (!deleteTarget?.id) return;
 
     try {
-      await deleteCourse(courseId);
+      await deleteCourse(deleteTarget.id);
       onApplyFilter();
       showToast("Course deleted successfully.");
+      onCloseDeleteModal();
     } catch (deleteError) {
       console.error(deleteError);
       showToast("Unable to delete course.", "error");
@@ -317,7 +323,12 @@ export default function Courses() {
                   courses.map((course) => (
                     <tr key={course.id} className="border-t">
                       <td className="p-4 text-sm font-medium text-gray-900 text-center">
-                        {course.title}
+                        <Link
+                          to={`/admin/courses/${course.id}`}
+                          className="text-red-600 hover:text-red-700 hover:underline"
+                        >
+                          {course.title}
+                        </Link>
                       </td>
                       <td className="p-4 text-sm text-gray-600 whitespace-nowrap text-center">
                         {course.duration || "-"}
@@ -346,7 +357,7 @@ export default function Courses() {
                           <motion.button
                             whileTap={{ scale: 0.9 }}
                             type="button"
-                            onClick={() => onDelete(course.id)}
+                            onClick={() => onOpenDeleteModal(course)}
                             className="inline-flex items-center px-3 py-1.5 rounded-sm border border-red-200 text-red-700 bg-red-50 hover:bg-red-600 hover:text-white font-semibold transition-colors cursor-pointer"
                           >
                             Delete
@@ -458,6 +469,25 @@ export default function Courses() {
 
                 <div className="flex flex-col gap-1">
                   <label
+                    htmlFor="course-category"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Category
+                  </label>
+                  <select
+                    id="course-category"
+                    name="category"
+                    value={formState.category}
+                    onChange={onChangeField}
+                    className="border border-gray-300 px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
                     htmlFor="course-status"
                     className="text-sm font-medium text-gray-700"
                   >
@@ -488,40 +518,6 @@ export default function Courses() {
                     value={formState.duration}
                     onChange={onChangeField}
                     placeholder="Duration (example: 12 Weeks)"
-                    className="border border-gray-300 px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="course-rating"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Rating
-                  </label>
-                  <input
-                    id="course-rating"
-                    name="rating"
-                    value={formState.rating}
-                    onChange={onChangeField}
-                    placeholder="Rating"
-                    className="border border-gray-300 px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label
-                    htmlFor="course-reviews"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Reviews Count
-                  </label>
-                  <input
-                    id="course-reviews"
-                    name="reviews"
-                    value={formState.reviews}
-                    onChange={onChangeField}
-                    placeholder="Reviews count"
                     className="border border-gray-300 px-3 py-2 text-sm"
                   />
                 </div>
@@ -644,6 +640,61 @@ export default function Courses() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <motion.div
+              className="fixed inset-0 bg-black/50 z-40"
+              variants={modalBackdropVariants}
+              onClick={onCloseDeleteModal}
+            />
+            <motion.div
+              variants={modalPanelVariants}
+              className="relative z-50 bg-white w-full max-w-md rounded-xl shadow-xl border border-gray-100"
+            >
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Delete Course
+                </h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  Are you sure you want to delete
+                  <span className="font-semibold text-gray-900">
+                    {` ${deleteTarget.title}`}
+                  </span>
+                  ? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="p-5 flex items-center justify-end gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={onCloseDeleteModal}
+                  className="px-4 py-2 text-sm border border-gray-300 hover:bg-gray-50 rounded-sm cursor-pointer"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={onDelete}
+                  className="px-5 py-2 text-sm font-semibold bg-red-600 hover:bg-red-700 text-white rounded-sm cursor-pointer"
+                >
+                  Delete
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+export default memo(Courses);

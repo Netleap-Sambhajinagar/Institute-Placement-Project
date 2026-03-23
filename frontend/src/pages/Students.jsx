@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import Toast from "../components/Toast";
 import StudentForm from "../components/StudentForm";
@@ -37,7 +37,7 @@ const normalizeStudent = (student) => ({
   dobValue: student.DOB || "",
 });
 
-export default function Students() {
+function Students() {
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
     () => ({
@@ -260,16 +260,53 @@ export default function Students() {
         </motion.button>
       </div>
 
-      {showForm && (
-        <StudentForm
-          formData={formData}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
-          onCancel={handleCloseForm}
-          isEditing={isEditing}
-          submitLabel={isEditing ? "Update Student" : "Save Student"}
-        />
-      )}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <motion.div
+              className="fixed inset-0 bg-slate-900/45 z-40"
+              variants={modalBackdropVariants}
+              onClick={handleCloseForm}
+              aria-hidden="true"
+            />
+
+            <motion.div
+              variants={modalPanelVariants}
+              className="relative z-50 w-full max-w-4xl bg-white rounded-xl border border-gray-200 shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {isEditing ? "Edit Student" : "Add Student"}
+                </h3>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="text-sm px-3 py-1.5 border border-gray-300 hover:bg-gray-100 rounded-sm cursor-pointer"
+                >
+                  Close
+                </motion.button>
+              </div>
+
+              <div className="p-5">
+                <StudentForm
+                  formData={formData}
+                  onChange={handleChange}
+                  onSubmit={handleSubmit}
+                  onCancel={handleCloseForm}
+                  isEditing={isEditing}
+                  submitLabel={isEditing ? "Update Student" : "Save Student"}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filter Section */}
       <div className="bg-white p-5 rounded-none shadow-sm border border-gray-100 flex gap-4 items-center flex-wrap">
@@ -446,3 +483,5 @@ export default function Students() {
     </div>
   );
 }
+
+export default memo(Students);

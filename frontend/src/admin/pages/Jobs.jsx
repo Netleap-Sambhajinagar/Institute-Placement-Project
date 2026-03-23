@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -45,7 +45,7 @@ const normalizeJob = (job) => ({
   postedOnValue: job.createdAt || job.updatedAt || job.date || "",
 });
 
-export default function Jobs() {
+function Jobs() {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
@@ -69,9 +69,9 @@ export default function Jobs() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(initialForm);
   const [searchInput, setSearchInput] = useState("");
-  const [locationInput, setLocationInput] = useState("");
+  const [positionInput, setPositionInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
-  const [appliedLocation, setAppliedLocation] = useState("");
+  const [appliedPosition, setAppliedPosition] = useState("");
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const formRef = useRef(null);
   const positionInputRef = useRef(null);
@@ -85,8 +85,8 @@ export default function Jobs() {
     [jobs],
   );
 
-  const locationOptions = useMemo(
-    () => [...new Set(jobList.map((job) => job.locationValue).filter(Boolean))],
+  const positionOptions = useMemo(
+    () => [...new Set(jobList.map((job) => job.positionValue).filter(Boolean))],
     [jobList],
   );
 
@@ -105,12 +105,12 @@ export default function Jobs() {
           job.requirementsValue,
         ].some((field) => String(field).toLowerCase().includes(search));
 
-      const matchesLocation =
-        !appliedLocation || job.locationValue === appliedLocation;
+      const matchesPosition =
+        !appliedPosition || job.positionValue === appliedPosition;
 
-      return matchesSearch && matchesLocation;
+      return matchesSearch && matchesPosition;
     });
-  }, [jobList, appliedSearch, appliedLocation]);
+  }, [jobList, appliedSearch, appliedPosition]);
 
   useEffect(() => {
     if (jobsStatus === "idle") {
@@ -231,7 +231,7 @@ export default function Jobs() {
 
   const handleApplyFilter = () => {
     setAppliedSearch(searchInput);
-    setAppliedLocation(locationInput);
+    setAppliedPosition(positionInput);
   };
 
   return (
@@ -251,166 +251,209 @@ export default function Jobs() {
         </motion.button>
       </div>
 
-      {showForm && (
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-position"
-              className="text-sm font-medium text-gray-700"
-            >
-              Job Position
-            </label>
-            <input
-              id="job-position"
-              ref={positionInputRef}
-              type="text"
-              name="position"
-              value={formData.position}
-              onChange={handleChange}
-              placeholder="Job Position"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-company"
-              className="text-sm font-medium text-gray-700"
-            >
-              Company
-            </label>
-            <input
-              id="job-company"
-              type="text"
-              name="company"
-              value={formData.company}
-              onChange={handleChange}
-              placeholder="Company"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-location"
-              className="text-sm font-medium text-gray-700"
-            >
-              Location
-            </label>
-            <input
-              id="job-location"
-              type="text"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              placeholder="Location"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-salary"
-              className="text-sm font-medium text-gray-700"
-            >
-              Salary / CTC
-            </label>
-            <input
-              id="job-salary"
-              type="text"
-              name="salary"
-              value={formData.salary}
-              onChange={handleChange}
-              placeholder="Salary / CTC"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-url"
-              className="text-sm font-medium text-gray-700"
-            >
-              Application URL
-            </label>
-            <input
-              id="job-url"
-              type="url"
-              name="jobURL"
-              value={formData.jobURL}
-              onChange={handleChange}
-              placeholder="Application URL"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-            />
-          </div>
-
-          <div className="md:col-span-2 flex flex-col gap-1">
-            <label
-              htmlFor="job-description"
-              className="text-sm font-medium text-gray-700"
-            >
-              Job Description
-            </label>
-            <textarea
-              id="job-description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Job Description"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              rows="4"
-            />
-          </div>
-
-          <div className="md:col-span-2 lg:col-span-1 flex flex-col gap-1">
-            <label
-              htmlFor="job-requirements"
-              className="text-sm font-medium text-gray-700"
-            >
-              Requirements
-            </label>
-            <textarea
-              id="job-requirements"
-              name="requirements"
-              value={formData.requirements}
-              onChange={handleChange}
-              placeholder="Requirements"
-              className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
-              rows="4"
-            />
-          </div>
-
-          <div className="md:col-span-2 lg:col-span-3 flex gap-3">
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="submit"
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
-            >
-              {isEditing ? "Update Job" : "Save Job"}
-            </motion.button>
-
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="button"
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+          >
+            <motion.div
+              className="fixed inset-0 bg-slate-900/45 z-40"
+              variants={modalBackdropVariants}
               onClick={() => {
                 setShowForm(false);
                 setEditingId(null);
                 setFormData(initialForm);
               }}
-              className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors"
+              aria-hidden="true"
+            />
+
+            <motion.div
+              variants={modalPanelVariants}
+              className="relative z-50 w-full max-w-5xl bg-white rounded-xl border border-gray-100 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
-              Cancel
-            </motion.button>
-          </div>
-        </form>
-      )}
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {isEditing ? "Edit Job" : "Add Job"}
+                </h3>
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setFormData(initialForm);
+                  }}
+                  className="text-sm px-3 py-1.5 border border-gray-300 hover:bg-gray-100 rounded-sm cursor-pointer"
+                >
+                  Close
+                </motion.button>
+              </div>
+
+              <form
+                ref={formRef}
+                onSubmit={handleSubmit}
+                className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="job-position"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Job Position
+                  </label>
+                  <input
+                    id="job-position"
+                    ref={positionInputRef}
+                    type="text"
+                    name="position"
+                    value={formData.position}
+                    onChange={handleChange}
+                    placeholder="Job Position"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="job-company"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Company
+                  </label>
+                  <input
+                    id="job-company"
+                    type="text"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                    placeholder="Company"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="job-location"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Location
+                  </label>
+                  <input
+                    id="job-location"
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    placeholder="Location"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    required
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="job-salary"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Salary / CTC
+                  </label>
+                  <input
+                    id="job-salary"
+                    type="text"
+                    name="salary"
+                    value={formData.salary}
+                    onChange={handleChange}
+                    placeholder="Salary / CTC"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label
+                    htmlFor="job-url"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Application URL
+                  </label>
+                  <input
+                    id="job-url"
+                    type="url"
+                    name="jobURL"
+                    value={formData.jobURL}
+                    onChange={handleChange}
+                    placeholder="Application URL"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2 flex flex-col gap-1">
+                  <label
+                    htmlFor="job-description"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Job Description
+                  </label>
+                  <textarea
+                    id="job-description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Job Description"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    rows="4"
+                  />
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-1 flex flex-col gap-1">
+                  <label
+                    htmlFor="job-requirements"
+                    className="text-sm font-medium text-gray-700"
+                  >
+                    Requirements
+                  </label>
+                  <textarea
+                    id="job-requirements"
+                    name="requirements"
+                    value={formData.requirements}
+                    onChange={handleChange}
+                    placeholder="Requirements"
+                    className="border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                    rows="4"
+                  />
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-3 flex gap-3 justify-end">
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingId(null);
+                      setFormData(initialForm);
+                    }}
+                    className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors rounded-sm cursor-pointer"
+                  >
+                    Cancel
+                  </motion.button>
+
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="submit"
+                    className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
+                  >
+                    {isEditing ? "Update Job" : "Save Job"}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="bg-white p-5 rounded-none shadow-sm border border-gray-100 flex gap-4 items-center flex-wrap">
         <input
@@ -422,14 +465,14 @@ export default function Jobs() {
         />
 
         <select
-          value={locationInput}
-          onChange={(event) => setLocationInput(event.target.value)}
+          value={positionInput}
+          onChange={(event) => setPositionInput(event.target.value)}
           className="border border-gray-300 rounded-none px-4 py-2 w-40 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all cursor-pointer"
         >
-          <option value="">Location</option>
-          {locationOptions.map((location) => (
-            <option key={location} value={location}>
-              {location}
+          <option value="">Position</option>
+          {positionOptions.map((position) => (
+            <option key={position} value={position}>
+              {position}
             </option>
           ))}
         </select>
@@ -582,3 +625,5 @@ export default function Jobs() {
     </div>
   );
 }
+
+export default memo(Jobs);

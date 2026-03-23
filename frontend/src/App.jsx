@@ -6,9 +6,11 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Sidebar from "./components/Sidebar";
 import StudentNavbar from "./components/StudentNavbar";
+import SettingsModal from "./components/SettingsModal";
+import { selectTheme } from "./store/slices/uiSlice";
 // Page Components
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
@@ -42,13 +44,24 @@ const StudentLayout = () => {
 
 const App = () => {
   const dispatch = useDispatch();
+  const theme = useSelector(selectTheme);
 
   useEffect(() => {
     dispatch(hydrateCurrentUser());
   }, [dispatch]);
 
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [theme]);
+
   return (
     <BrowserRouter>
+      <SettingsModal />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />

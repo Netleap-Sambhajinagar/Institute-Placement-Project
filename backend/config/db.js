@@ -3,25 +3,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const getEnvOrDefault = (value, fallback) => {
-  if (!value) return fallback;
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized.startsWith("your-")) return fallback;
-
-  return value;
-};
-
 const sequelize = new Sequelize(
-  getEnvOrDefault(process.env.DB_NAME, "NITS"),
-  getEnvOrDefault(process.env.DB_USER, "root"),
-  getEnvOrDefault(process.env.DB_PASSWORD, "root"),
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
   {
-    host: getEnvOrDefault(process.env.DB_HOST, "localhost"),
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
     dialect: "mysql",
-    port: Number(process.env.DB_PORT) || 3306,
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
     logging: false,
-  },
+  }
 );
 
 export default sequelize;

@@ -148,19 +148,21 @@ export default function StudentForm({
         </div>
       </div>
 
-      <div className="mt-6 flex gap-3">
-        <motion.button whileTap={{ scale: 0.9 }}
-          type="submit"
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
-        >
-          {submitLabel}
-        </motion.button>
-        <motion.button whileTap={{ scale: 0.9 }}
+      <div className="mt-6 flex gap-3 justify-end">
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           type="button"
           onClick={onCancel}
           className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors rounded-sm cursor-pointer"
         >
           Cancel
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          type="submit"
+          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
+        >
+          {submitLabel}
         </motion.button>
       </div>
     </form>

@@ -1,12 +1,19 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { getStudentById } from "../api/studentsApi";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  getStudentById,
+  updateStudentProfileById,
+} from "../api/studentsApi";
 import { getInternApplications } from "../api/internsApi";
 import { getInternships } from "../api/internshipsApi";
 import { getPlacedStudents } from "../api/placedStudentsApi";
 import { getCourseEnrollmentsByStudent } from "../api/courseEnrollmentsApi";
 import { getCourses } from "../api/coursesApi";
+import { selectCurrentUser, setStudentAuth } from "../store/slices/authSlice";
+import Toast from "../components/Toast";
+import useToast from "../hooks/useToast";
 
 function formatDisplayDate(value) {
   if (!value) return "NA";
@@ -62,14 +69,84 @@ function toTitle(value) {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
 
+function toDobInputValue(value) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function buildStudentSection(studentData, id) {
+  return {
+    id: Number(studentData.id || id),
+    name: studentData.name || "Student",
+    studentId: `NITS${String(studentData.id || id).padStart(3, "0")}`,
+    age: calculateAge(studentData.DOB),
+    gender: toTitle(studentData.gender),
+    phone: studentData.phone || "NA",
+    email: studentData.email || "NA",
+    college: studentData.college || "NA",
+    education: studentData.education || "NA",
+    domain: studentData.domain || "NA",
+    dob: formatDisplayDate(studentData.DOB),
+    admissionDate: formatDisplayDate(studentData.createdAt),
+    raw: {
+      name: studentData.name || "",
+      email: studentData.email || "",
+      phone: studentData.phone || "",
+      gender: studentData.gender || "",
+      DOB: toDobInputValue(studentData.DOB),
+      education: studentData.education || "",
+      college: studentData.college || "",
+      domain: studentData.domain || "",
+    },
+  };
+}
+
+function buildProfileForm(studentSection) {
+  if (!studentSection?.raw) {
+    return {
+      name: "",
+      email: "",
+      phone: "",
+      gender: "",
+      DOB: "",
+      education: "",
+      college: "",
+      domain: "",
+    };
+  }
+
+  return {
+    name: studentSection.raw.name || "",
+    email: studentSection.raw.email || "",
+    phone: studentSection.raw.phone || "",
+    gender: studentSection.raw.gender || "",
+    DOB: studentSection.raw.DOB || "",
+    education: studentSection.raw.education || "",
+    college: studentSection.raw.college || "",
+    domain: studentSection.raw.domain || "",
+  };
+}
+
 export default function StudentProfile() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const currentUser = useSelector(selectCurrentUser);
   const { id } = useParams();
   const [profileData, setProfileData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [isEditingProfile, setIsEditingProfile] = React.useState(false);
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+  const [profileError, setProfileError] = React.useState("");
+  const [profileForm, setProfileForm] = React.useState(() =>
+    buildProfileForm(null),
+  );
+  const { toast, showToast } = useToast();
 
   React.useEffect(() => {
     const fetchStudentProfile = async () => {
+      setLoading(true);
       try {
         const [
           studentData,
@@ -179,19 +256,7 @@ export default function StudentProfile() {
         }));
 
         setProfileData({
-          student: {
-            name: studentData.name || "Student",
-            studentId: `NITS${String(studentData.id || id).padStart(3, "0")}`,
-            age: calculateAge(studentData.DOB),
-            gender: toTitle(studentData.gender),
-            phone: studentData.phone || "NA",
-            email: studentData.email || "NA",
-            college: studentData.college || "NA",
-            education: studentData.education || "NA",
-            domain: studentData.domain || "NA",
-            dob: formatDisplayDate(studentData.DOB),
-            admissionDate: formatDisplayDate(studentData.createdAt),
-          },
+          student: buildStudentSection(studentData, id),
           internships: internshipRecords,
           courses: enrolledCourses,
           placements: placementRecords,
@@ -206,6 +271,81 @@ export default function StudentProfile() {
 
     fetchStudentProfile();
   }, [id]);
+
+  React.useEffect(() => {
+    if (!profileData?.student || isEditingProfile) return;
+    setProfileForm(buildProfileForm(profileData.student));
+  }, [profileData, isEditingProfile]);
+
+  const handleProfileInputChange = (event) => {
+    const { name, value } = event.target;
+    setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleStartProfileEdit = () => {
+    if (!profileData?.student) return;
+    setProfileError("");
+    setProfileForm(buildProfileForm(profileData.student));
+    setIsEditingProfile(true);
+  };
+
+  const handleCancelProfileEdit = () => {
+    setProfileError("");
+    setProfileForm(buildProfileForm(profileData?.student));
+    setIsEditingProfile(false);
+  };
+
+  const handleSaveProfile = async (event) => {
+    event.preventDefault();
+    if (!profileData?.student?.id) return;
+
+    const payload = {
+      name: profileForm.name.trim(),
+      email: profileForm.email.trim(),
+      phone: profileForm.phone.trim(),
+      gender: profileForm.gender,
+      DOB: profileForm.DOB || null,
+      education: profileForm.education.trim(),
+      college: profileForm.college.trim(),
+      domain: profileForm.domain.trim(),
+    };
+
+    if (!payload.name || !payload.email || !payload.phone) {
+      setProfileError("Name, email and phone are required.");
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      setProfileError("");
+
+      const updatedStudent = await updateStudentProfileById(
+        profileData.student.id,
+        payload,
+      );
+
+      setProfileData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          student: buildStudentSection(updatedStudent, id),
+        };
+      });
+
+      if (Number(currentUser?.id) === Number(profileData.student.id)) {
+        dispatch(setStudentAuth(updatedStudent));
+      }
+
+      showToast("Profile updated successfully.");
+      setIsEditingProfile(false);
+    } catch (error) {
+      setProfileError(
+        error?.response?.data?.message || "Failed to update profile.",
+      );
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -240,6 +380,8 @@ export default function StudentProfile() {
 
   return (
     <div className="space-y-8">
+      <Toast toast={toast} />
+
       <p className="text-gray-500">
         Students &gt; Student List &gt;{" "}
         <span className="text-black font-semibold">
@@ -247,35 +389,148 @@ export default function StudentProfile() {
         </span>
       </p>
 
-      <h1 className="text-3xl font-bold">Student Profile</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-3xl font-bold">Student Profile</h1>
 
-      <div className="bg-white p-6 rounded-lg border">
+        {!isEditingProfile ? (
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={handleStartProfileEdit}
+            className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
+            Edit Profile
+          </motion.button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCancelProfileEdit}
+              className="border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold"
+              disabled={isSavingProfile}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="student-profile-form"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-70"
+              disabled={isSavingProfile}
+            >
+              {isSavingProfile ? "Saving..." : "Save"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <form
+        id="student-profile-form"
+        className="bg-white p-6 rounded-lg border"
+        onSubmit={handleSaveProfile}
+      >
         <h2 className="text-xl font-semibold mb-5">Student Information</h2>
 
         <div className="border rounded-lg p-4 mb-4 bg-slate-50/70">
-          <h3 className="text-2xl font-semibold text-gray-900">
-            {profileData.student.name}
-          </h3>
+          {isEditingProfile ? (
+            <input
+              type="text"
+              name="name"
+              value={profileForm.name}
+              onChange={handleProfileInputChange}
+              className="w-full border rounded-lg px-3 py-2 text-2xl font-semibold text-gray-900"
+              placeholder="Full name"
+            />
+          ) : (
+            <h3 className="text-2xl font-semibold text-gray-900">
+              {profileData.student.name}
+            </h3>
+          )}
           <p className="text-gray-600 mt-1">
             Student ID: {profileData.student.studentId}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <InfoCard title="Age" value={profileData.student.age} />
-          <InfoCard title="Gender" value={profileData.student.gender} />
-          <InfoCard title="Phone" value={profileData.student.phone} />
-          <InfoCard title="Email" value={profileData.student.email} />
-          <InfoCard title="College" value={profileData.student.college} />
-          <InfoCard title="Education" value={profileData.student.education} />
-          <InfoCard title="Domain" value={profileData.student.domain} />
-          <InfoCard title="DOB" value={profileData.student.dob} />
-          <InfoCard
-            title="Admission Date"
-            value={profileData.student.admissionDate}
-          />
-        </div>
-      </div>
+        {isEditingProfile ? (
+          <>
+            {profileError ? (
+              <p className="text-sm text-red-600 mb-4">{profileError}</p>
+            ) : null}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <InfoCard title="Age" value={profileData.student.age} />
+              <EditableInfoField
+                title="Gender"
+                name="gender"
+                value={profileForm.gender}
+                onChange={handleProfileInputChange}
+                placeholder="Enter gender"
+              />
+              <EditableInfoField
+                title="Phone"
+                name="phone"
+                value={profileForm.phone}
+                onChange={handleProfileInputChange}
+                placeholder="Enter phone"
+              />
+              <EditableInfoField
+                title="Email"
+                name="email"
+                value={profileForm.email}
+                onChange={handleProfileInputChange}
+                type="email"
+                placeholder="Enter email"
+              />
+              <EditableInfoField
+                title="College"
+                name="college"
+                value={profileForm.college}
+                onChange={handleProfileInputChange}
+                placeholder="Enter college"
+              />
+              <EditableInfoField
+                title="Education"
+                name="education"
+                value={profileForm.education}
+                onChange={handleProfileInputChange}
+                placeholder="Enter education"
+              />
+              <EditableInfoField
+                title="Domain"
+                name="domain"
+                value={profileForm.domain}
+                onChange={handleProfileInputChange}
+                placeholder="Enter domain"
+              />
+              <EditableInfoField
+                title="DOB"
+                name="DOB"
+                value={profileForm.DOB}
+                onChange={handleProfileInputChange}
+                type="date"
+              />
+              <InfoCard
+                title="Admission Date"
+                value={profileData.student.admissionDate}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <InfoCard title="Age" value={profileData.student.age} />
+            <InfoCard title="Gender" value={profileData.student.gender} />
+            <InfoCard title="Phone" value={profileData.student.phone} />
+            <InfoCard title="Email" value={profileData.student.email} />
+            <InfoCard title="College" value={profileData.student.college} />
+            <InfoCard title="Education" value={profileData.student.education} />
+            <InfoCard title="Domain" value={profileData.student.domain} />
+            <InfoCard title="DOB" value={profileData.student.dob} />
+            <InfoCard
+              title="Admission Date"
+              value={profileData.student.admissionDate}
+            />
+          </div>
+        )}
+      </form>
 
       <div className="bg-white p-6 rounded-lg border">
         <h2 className="text-xl font-semibold mb-5">Internship Details</h2>
@@ -399,7 +654,30 @@ function InfoCard({ title, value }) {
   return (
     <div className="border rounded-lg p-4">
       <p className="text-gray-500 text-sm">{title}</p>
-      <p className={valueClassName}>{value}</p>
+      <p className={valueClassName}>{value || "NA"}</p>
     </div>
+  );
+}
+
+function EditableInfoField({
+  title,
+  name,
+  value,
+  onChange,
+  type = "text",
+  placeholder = "",
+}) {
+  return (
+    <label className="border rounded-lg p-4 block">
+      <p className="text-gray-500 text-sm mb-1">{title}</p>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="w-full outline-none bg-transparent font-medium"
+      />
+    </label>
   );
 }

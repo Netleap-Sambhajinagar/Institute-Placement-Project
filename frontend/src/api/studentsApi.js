@@ -36,6 +36,12 @@ export const updateStudent = async (id, studentInput) => {
   return await getStudents();
 };
 
+export const updateStudentProfileById = async (id, studentInput) => {
+  const response = await client.put(`/students/${id}`, studentInput);
+  emitStudentsUpdated();
+  return response.data?.data || response.data;
+};
+
 export const deleteStudent = async (id) => {
   await client.delete(`/students/${id}`);
   emitStudentsUpdated();
