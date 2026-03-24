@@ -22,7 +22,7 @@ import StudentProfile from "./pages/StudentProfile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Landing from "./pages/Landing";
-import Adminapp from "./admin/adminapp";
+import Adminapp from "./admin/Adminapp";
 import { hydrateCurrentUser } from "./store/slices/authSlice";
 
 // Student layout — only wraps student-facing pages
