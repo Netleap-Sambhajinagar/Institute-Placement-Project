@@ -90,11 +90,18 @@ const studentRegister = async (req, res) => {
       OTP_TTL_SECONDS,
     );
 
-    await sendMail(
-      normalizedEmail,
-      "Verify OTP",
-      `Your OTP is ${otp}. It will expire in ${Math.floor(OTP_TTL_SECONDS / 60)} minutes.`,
-    );
+    try {
+      await sendMail(
+        normalizedEmail,
+        "Verify OTP",
+        `Your OTP is ${otp}. It will expire in ${Math.floor(OTP_TTL_SECONDS / 60)} minutes.`,
+      );
+    } catch {
+      await redis.del(otpKey);
+      return res.status(503).json({
+        message: "Unable to send OTP email right now. Please try again.",
+      });
+    }
 
     return res.status(200).json({
       message: "OTP sent to your email. Verify OTP to complete registration.",
@@ -311,7 +318,7 @@ export {
   studentRegister,
   verifyStudentRegisterOtp,
   studentLogin,
-//   studentForgotPassword,
+  //   studentForgotPassword,
   adminRegister,
   adminLogin,
   me,
