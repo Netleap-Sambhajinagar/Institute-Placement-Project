@@ -56,8 +56,8 @@ app.use("/api", jobsRoutes);
 app.use("/api", placedStudentRoutes);
 app.use("/api", dashboardRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Backend running...");
+app.get("/api/health", (req, res) => {
+  res.json({ status: "Backend is running" });
 });
 
 const PORT = process.env.PORT || 5000;
