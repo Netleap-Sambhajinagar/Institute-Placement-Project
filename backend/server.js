@@ -25,22 +25,13 @@ import "./models/placedStudentModel.js";
 dotenv.config();
 
 const app = express();
-const allowedOrigins = (
-  process.env.CLIENT_URLS || "http://localhost:5173,http://localhost:5174"
-)
-  .split(",")
+const allowedOrigins = process.env.CLIENT_URLS.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
@@ -60,19 +51,19 @@ app.use("/api", dashboardRoutes);
 
 // ============ HEALTH CHECK ============
 app.get("/api/health", (req, res) => {
-  res.json({ 
+  res.json({
     status: "Backend is running",
     timestamp: new Date(),
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
   });
 });
 
 // ============ ROOT ENDPOINT ============
 app.get("/", (req, res) => {
-  res.json({ 
+  res.json({
     message: "NITS Dashboard Backend",
     version: "1.0.0",
-    status: "running"
+    status: "running",
   });
 });
 
@@ -85,7 +76,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("Error:", err.message);
   res.status(err.status || 500).json({
-    error: err.message || "Internal server error"
+    error: err.message || "Internal server error",
   });
 });
 

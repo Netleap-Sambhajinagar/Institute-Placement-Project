@@ -2,7 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/db.js";
 
 const PlacedStudent = sequelize.define(
-  "PlacedStudent",
+  "Placedstudent",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -41,7 +41,8 @@ const PlacedStudent = sequelize.define(
     },
   },
   {
-    tableName: "placedStudents",
+    tableName: "placedstudents",
+    freezeTableName: true,
     timestamps: true,
   },
 );

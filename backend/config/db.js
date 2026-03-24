@@ -27,7 +27,12 @@ const sequelize = new Sequelize(
 
 sequelize
   .authenticate()
-  .then(() => console.log("Aiven MySQL connected successfully"))
-  .catch((err) => console.error(" DB connection failed:", err));
+  .then(() => console.log("✅ Aiven MySQL connected successfully"))
+  .catch((err) => {
+    console.error("❌ Database connection failed");
+    console.error("Host:", process.env.DB_HOST);
+    console.error("Port:", process.env.DB_PORT);
+    console.error("Error details:", err.message);
+  });
 
 export default sequelize;

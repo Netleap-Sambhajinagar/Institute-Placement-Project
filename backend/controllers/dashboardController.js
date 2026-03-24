@@ -30,7 +30,7 @@ const getAdminDashboard = async (_req, res) => {
               s.createdAt,
               CASE WHEN COUNT(ps.id) > 0 THEN 'Placed' ELSE 'Active' END AS placementStatus
             FROM students s
-            LEFT JOIN placedStudents ps ON ps.studentId = s.id
+            LEFT JOIN placedstudents ps ON ps.studentId = s.id
             GROUP BY s.id, s.name, s.email, s.domain, s.education, s.college, s.createdAt
             ORDER BY s.createdAt DESC
             LIMIT 5

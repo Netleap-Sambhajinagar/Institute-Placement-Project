@@ -11,12 +11,18 @@ const sendMail = async (email, subject, text) => {
     }
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      family: 4,
       auth: {
         user: process.env.EMAIL,
         pass: process.env.PASSWORD,
       },
     });
+
+    // Test connection before sending
+    await transporter.verify();
 
     const result = await transporter.sendMail({
       from: process.env.EMAIL,
@@ -25,8 +31,10 @@ const sendMail = async (email, subject, text) => {
       text,
     });
 
+    console.log("✅ Email sent successfully to:", email);
     return result;
   } catch (error) {
+    console.error("❌ Email sending failed:", error.message);
     throw error;
   }
 };
