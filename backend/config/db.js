@@ -1,7 +1,10 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import fs from "fs";
 
 dotenv.config();
+
+fs.writeFileSync("ca.pem", process.env.DB_CA_CERT);
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -10,21 +13,21 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
-    dialect: "postgres",  // ← CHANGED from mysql to postgres
+    dialect: "mysql",
     dialectOptions: {
       ssl: {
         require: true,
         rejectUnauthorized: false,
-        ca: Buffer.from(process.env.DB_CA_CERT, "base64").toString("utf-8"),
+        ca: fs.readFileSync("ca.pem"),
       },
     },
     logging: false,
-  }
+  },
 );
 
 sequelize
   .authenticate()
-  .then(() => console.log("✅ Aiven PostgreSQL connected successfully"))
-  .catch((err) => console.error("❌ DB connection failed:", err));
+  .then(() => console.log("Aiven MySQL connected successfully"))
+  .catch((err) => console.error(" DB connection failed:", err));
 
 export default sequelize;
