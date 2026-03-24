@@ -46,6 +46,8 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json());
+
+// ============ API ROUTES ============
 app.use("/api", authRoutes);
 app.use("/api", studentRoutes);
 app.use("/api", internRoutes);
@@ -56,29 +58,63 @@ app.use("/api", jobsRoutes);
 app.use("/api", placedStudentRoutes);
 app.use("/api", dashboardRoutes);
 
+// ============ HEALTH CHECK ============
 app.get("/api/health", (req, res) => {
-  res.json({ status: "Backend is running" });
+  res.json({ 
+    status: "Backend is running",
+    timestamp: new Date(),
+    environment: process.env.NODE_ENV
+  });
+});
+
+// ============ ROOT ENDPOINT ============
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "NITS Dashboard Backend",
+    version: "1.0.0",
+    status: "running"
+  });
+});
+
+// ============ 404 HANDLER ============
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
+// ============ ERROR HANDLER ============
+app.use((err, req, res, next) => {
+  console.error("Error:", err.message);
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error"
+  });
 });
 
 const PORT = process.env.PORT || 5000;
 const SHOULD_SYNC = process.env.DB_SYNC === "true";
 
 const startServer = async () => {
-  await sequelize.authenticate();
-  console.log("Database connected");
+  try {
+    await sequelize.authenticate();
+    console.log("✅ Database connected");
 
-  if (SHOULD_SYNC) {
-    await sequelize.query("SET FOREIGN_KEY_CHECKS = 0");
-    await sequelize.sync();
-    await sequelize.query("SET FOREIGN_KEY_CHECKS = 1");
-    console.log("Database synced");
+    if (SHOULD_SYNC) {
+      await sequelize.query("SET FOREIGN_KEY_CHECKS = 0");
+      await sequelize.sync();
+      await sequelize.query("SET FOREIGN_KEY_CHECKS = 1");
+      console.log("✅ Database synced");
+    }
+
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ Environment: ${process.env.NODE_ENV}`);
+      console.log(`✅ API Health: http://localhost:${PORT}/api/health`);
+    });
+  } catch (err) {
+    console.error("❌ Database startup error:", err.message);
+    process.exit(1);
   }
-
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
 };
 
-startServer().catch((err) => {
-  console.error("Database startup error:", err.message);
-});
+startServer();
+
+export default app;
