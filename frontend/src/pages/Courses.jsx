@@ -1,17 +1,12 @@
 import { useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { Clock } from "lucide-react";
 import { getCoursesUpdatedEventName } from "../api/coursesApi";
 import Toast from "../components/Toast";
 import useToast from "../hooks/useToast";
-import {
-  fetchCourses,
-  markCoursesStale,
-  selectCourseList,
-  selectCoursesError,
-  selectCoursesStatus,
-} from "../store/slices/coursesSlice";
+import { fetchCoursesQuery } from "../api/queryFns";
+import { queryKeys } from "../api/queryKeys";
 
 const CourseCard = ({ course }) => (
   <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
@@ -44,15 +39,23 @@ const CourseCard = ({ course }) => (
 );
 
 const Courses = () => {
-  const dispatch = useDispatch();
-  const courseList = useSelector(selectCourseList);
-  const coursesStatus = useSelector(selectCoursesStatus);
-  const coursesError = useSelector(selectCoursesError);
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { toast, showToast } = useToast();
   const navbarSearch = (searchParams.get("q") || "").trim().toLowerCase();
 
-  const loading = coursesStatus === "loading" || coursesStatus === "idle";
+  const {
+    data: courseList = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.courses(),
+    queryFn: () => fetchCoursesQuery(),
+  });
+
+  const coursesError = error?.message || null;
+
+  const loading = isLoading;
 
   const activeCourses = useMemo(
     () =>
@@ -86,19 +89,12 @@ const Courses = () => {
     );
   }, [activeCourses, navbarSearch]);
 
-  // Fetch course list once; skip on re-mount when already loaded
-  useEffect(() => {
-    if (coursesStatus === "idle") {
-      dispatch(fetchCourses());
-    }
-  }, [coursesStatus, dispatch]);
-
   // Invalidate cache when admin updates courses (same or cross tab)
   useEffect(() => {
     const coursesUpdatedEvent = getCoursesUpdatedEventName();
 
     const handleSync = () => {
-      dispatch(markCoursesStale());
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
       showToast("Course list updated.", "success", 2000);
     };
 
@@ -109,7 +105,7 @@ const Courses = () => {
       window.removeEventListener("storage", handleSync);
       window.removeEventListener(coursesUpdatedEvent, handleSync);
     };
-  }, [dispatch]);
+  }, [queryClient, showToast]);
 
   return (
     <div>

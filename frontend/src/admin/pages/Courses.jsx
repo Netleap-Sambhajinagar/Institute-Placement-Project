@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   createCourse,
@@ -7,6 +7,8 @@ import {
   getCoursesUpdatedEventName,
   updateCourse,
 } from "../../api/coursesApi";
+import { fetchCoursesQuery } from "../../api/queryFns";
+import { queryKeys } from "../../api/queryKeys";
 import Toast from "../../components/Toast";
 import useToast from "../../hooks/useToast";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,13 +16,6 @@ import {
   modalBackdropVariants,
   modalPanelVariants,
 } from "../../utils/modalMotion";
-import {
-  fetchCourses,
-  markCoursesStale,
-  selectCourseList,
-  selectCoursesError,
-  selectCoursesStatus,
-} from "../../store/slices/coursesSlice";
 
 const emptyForm = {
   title: "",
@@ -74,16 +69,13 @@ const toFormState = (course) => ({
 });
 
 function Courses() {
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
-  const courses = useSelector(selectCourseList);
-  const coursesStatus = useSelector(selectCoursesStatus);
-  const error = useSelector(selectCoursesError);
-  const loading = coursesStatus === "loading" || coursesStatus === "idle";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [durationFilter, setDurationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [queryParams, setQueryParams] = useState({});
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -106,15 +98,20 @@ function Courses() {
     };
   };
 
-  useEffect(() => {
-    if (coursesStatus === "idle") {
-      dispatch(fetchCourses(buildFilterParams()));
-    }
-  }, [coursesStatus, searchTerm, durationFilter, statusFilter, dispatch]);
+  const {
+    data: courses = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.courses(queryParams),
+    queryFn: () => fetchCoursesQuery(queryParams),
+  });
+
+  const loading = isLoading;
 
   useEffect(() => {
     const syncCourses = () => {
-      dispatch(markCoursesStale());
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
     };
 
     const coursesUpdatedEvent = getCoursesUpdatedEventName();
@@ -126,12 +123,12 @@ function Courses() {
       window.removeEventListener("storage", syncCourses);
       window.removeEventListener(coursesUpdatedEvent, syncCourses);
     };
-  }, [dispatch]);
+  }, [queryClient]);
 
   useEffect(() => {
     setSearchTerm(navbarSearch);
-    dispatch(fetchCourses(buildFilterParams({ search: navbarSearch })));
-  }, [navbarSearch, dispatch]);
+    setQueryParams(buildFilterParams({ search: navbarSearch }));
+  }, [navbarSearch]);
 
   const durationOptions = useMemo(() => {
     const uniqueDurations = [
@@ -141,7 +138,7 @@ function Courses() {
   }, [courses]);
 
   const onApplyFilter = () => {
-    dispatch(fetchCourses(buildFilterParams()));
+    setQueryParams(buildFilterParams());
   };
 
   const onOpenAddModal = () => {
@@ -199,7 +196,7 @@ function Courses() {
       }
 
       onCloseModal();
-      onApplyFilter();
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
     } catch (saveError) {
       console.error(saveError);
       setSubmitError("Unable to save course. Please try again.");
@@ -214,7 +211,7 @@ function Courses() {
 
     try {
       await deleteCourse(deleteTarget.id);
-      onApplyFilter();
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
       showToast("Course deleted successfully.");
       onCloseDeleteModal();
     } catch (deleteError) {

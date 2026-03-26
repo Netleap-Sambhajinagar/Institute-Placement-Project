@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award,
   CheckCircle,
@@ -9,11 +10,8 @@ import {
   PlayCircle,
   Smartphone,
 } from "lucide-react";
-import { getCourseById, getCoursesUpdatedEventName } from "../api/coursesApi";
-import {
-  createCourseEnrollment,
-  hasCourseEnrollment,
-} from "../api/courseEnrollmentsApi";
+import { getCoursesUpdatedEventName } from "../api/coursesApi";
+import { createCourseEnrollment } from "../api/courseEnrollmentsApi";
 import Toast from "../components/Toast";
 import useToast from "../hooks/useToast";
 import { motion } from "framer-motion";
@@ -23,6 +21,11 @@ import {
   selectIsStudent,
   selectStudentId,
 } from "../store/slices/authSlice";
+import {
+  fetchCourseDetailsQuery,
+  fetchCourseEnrollmentStatusQuery,
+} from "../api/queryFns";
+import { queryKeys } from "../api/queryKeys";
 
 const includeIconByText = (text) => {
   const lowerText = String(text).toLowerCase();
@@ -40,16 +43,35 @@ const CourseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const authStatus = useSelector(selectAuthStatus);
   const studentId = useSelector(selectStudentId);
   const isStudent = useSelector(selectIsStudent);
 
-  const [course, setCourse] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [enrolling, setEnrolling] = useState(false);
-  const [enrolled, setEnrolled] = useState(false);
   const { toast, showToast } = useToast();
+
+  const {
+    data: course,
+    isLoading: loading,
+    error: courseError,
+  } = useQuery({
+    queryKey: queryKeys.courseDetails(id),
+    queryFn: () => fetchCourseDetailsQuery(id),
+    enabled: Boolean(id),
+  });
+
+  const { data: enrolled = false } = useQuery({
+    queryKey: queryKeys.courseEnrollmentStatus(studentId, id),
+    queryFn: () =>
+      fetchCourseEnrollmentStatusQuery({
+        studentId,
+        courseId: id,
+      }),
+    enabled: Boolean(isStudent && studentId && id),
+  });
+
+  const error = courseError ? "Course details could not be loaded." : "";
 
   useEffect(() => {
     if (authStatus === "idle") {
@@ -58,24 +80,13 @@ const CourseDetails = () => {
   }, [authStatus, dispatch]);
 
   useEffect(() => {
-    const fetchCourse = async () => {
-      try {
-        setLoading(true);
-        const { data } = await getCourseById(id);
-        setCourse(data);
-        setError("");
-      } catch (fetchError) {
-        console.error(fetchError);
-        setError("Course details could not be loaded.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourse();
-
     const syncCourse = () => {
-      fetchCourse();
+      queryClient.invalidateQueries({ queryKey: queryKeys.courseDetails(id) });
+      if (studentId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.courseEnrollmentStatus(studentId, id),
+        });
+      }
     };
     const coursesUpdatedEvent = getCoursesUpdatedEventName();
 
@@ -86,28 +97,7 @@ const CourseDetails = () => {
       window.removeEventListener("storage", syncCourse);
       window.removeEventListener(coursesUpdatedEvent, syncCourse);
     };
-  }, [id]);
-
-  useEffect(() => {
-    const fetchEnrollmentState = async () => {
-      if (!isStudent || !studentId) {
-        setEnrolled(false);
-        return;
-      }
-
-      try {
-        const alreadyEnrolled = await hasCourseEnrollment({
-          studentId,
-          courseId: id,
-        });
-        setEnrolled(alreadyEnrolled);
-      } catch {
-        setEnrolled(false);
-      }
-    };
-
-    fetchEnrollmentState();
-  }, [id, isStudent, studentId]);
+  }, [id, studentId, queryClient]);
 
   const learnList = useMemo(() => course?.whatYouLearn || [], [course]);
   const includeList = useMemo(() => course?.includes || [], [course]);
@@ -141,7 +131,13 @@ const CourseDetails = () => {
         courseId: Number(id),
       });
 
-      setEnrolled(true);
+      queryClient.setQueryData(
+        queryKeys.courseEnrollmentStatus(studentId, id),
+        true,
+      );
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.studentDashboard(studentId),
+      });
       showToast("Enrolled successfully.", "success");
     } catch (enrollError) {
       const message = String(
@@ -149,7 +145,13 @@ const CourseDetails = () => {
       ).toLowerCase();
 
       if (message.includes("already") && message.includes("enroll")) {
-        setEnrolled(true);
+        queryClient.setQueryData(
+          queryKeys.courseEnrollmentStatus(studentId, id),
+          true,
+        );
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.studentDashboard(studentId),
+        });
         showToast("You are already enrolled in this course.", "success");
         return;
       }
@@ -182,7 +184,8 @@ const CourseDetails = () => {
   if (error || !course) {
     return (
       <div>
-        <motion.button whileTap={{ scale: 0.9 }}
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={() => navigate("/courses")}
           className="mb-6 text-red-500 cursor-pointer hover:text-red-600 font-medium"
         >
@@ -197,7 +200,8 @@ const CourseDetails = () => {
     <div className="animate-fadeIn">
       <Toast toast={toast} position="inline" />
 
-      <motion.button whileTap={{ scale: 0.9 }}
+      <motion.button
+        whileTap={{ scale: 0.9 }}
         onClick={() => navigate("/courses")}
         className="mb-6 text-red-500 cursor-pointer hover:text-red-600 font-medium"
       >
@@ -233,7 +237,8 @@ const CourseDetails = () => {
               {course.instructorRole ? `- ${course.instructorRole}` : ""}
             </p>
           </div>
-          <motion.button whileTap={{ scale: 0.9 }}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             type="button"
             onClick={handleEnroll}
             disabled={enrolling || enrolled || !isCourseActive}

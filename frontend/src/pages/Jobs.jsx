@@ -1,20 +1,14 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { BriefcaseBusiness, Bookmark, MapPin } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Toast from "../components/Toast";
 import useToast from "../hooks/useToast";
 import { addJobApplication, getAppliedJobIds } from "../utils/studentActivity";
-import {
-  fetchJobs,
-  markJobsStale,
-  selectAppliedJobIds,
-  selectJobList,
-  selectJobsStatus,
-  setAppliedJobIds,
-} from "../store/slices/jobsSlice";
+import { fetchJobsQuery } from "../api/queryFns";
+import { queryKeys } from "../api/queryKeys";
 import { selectStudentId } from "../store/slices/authSlice";
-import { markDashboardStale } from "../store/slices/dashboardSlice";
 import { motion } from "framer-motion";
 
 const normalizeJobUrl = (value) => {
@@ -29,36 +23,37 @@ const normalizeJobUrl = (value) => {
 };
 
 export default function Jobs() {
-  const dispatch = useDispatch();
-  const jobList = useSelector(selectJobList);
-  const jobsStatus = useSelector(selectJobsStatus);
-  const appliedJobIds = useSelector(selectAppliedJobIds);
+  const queryClient = useQueryClient();
   const studentId = useSelector(selectStudentId);
   const [searchParams] = useSearchParams();
   const [brokenLogos, setBrokenLogos] = useState(new Set());
+  const [appliedJobIds, setAppliedJobIds] = useState([]);
   const { toast, showToast } = useToast();
   const query = (searchParams.get("q") || "").trim().toLowerCase();
 
-  const loading = jobsStatus === "loading" || jobsStatus === "idle";
+  const {
+    data: jobList = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: queryKeys.jobs,
+    queryFn: fetchJobsQuery,
+  });
+
+  const loading = isLoading || isFetching;
 
   useEffect(() => {
-    if (jobsStatus === "idle") {
-      dispatch(fetchJobs());
-    }
-  }, [jobsStatus, dispatch]);
-
-  useEffect(() => {
-    dispatch(setAppliedJobIds(getAppliedJobIds(studentId)));
-  }, [studentId, dispatch]);
+    setAppliedJobIds(getAppliedJobIds(studentId));
+  }, [studentId]);
 
   useEffect(() => {
     const handleStorage = () => {
-      dispatch(markJobsStale());
-      dispatch(setAppliedJobIds(getAppliedJobIds(studentId)));
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
+      setAppliedJobIds(getAppliedJobIds(studentId));
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [studentId, dispatch]);
+  }, [studentId, queryClient]);
 
   const handleLogoError = (id) => {
     setBrokenLogos((prev) => new Set(prev).add(id));
@@ -87,8 +82,10 @@ export default function Jobs() {
     }
 
     const created = addJobApplication(studentId, jobId);
-    dispatch(setAppliedJobIds(getAppliedJobIds(studentId)));
-    dispatch(markDashboardStale());
+    setAppliedJobIds(getAppliedJobIds(studentId));
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.studentDashboard(studentId),
+    });
 
     if (!created) {
       showToast("You already applied for this job.", "success", 2500);

@@ -1,12 +1,14 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addInternship,
   deleteInternship,
   getInternshipsUpdatedEventName,
   updateInternship,
 } from "../../api/internshipsApi";
+import { fetchInternshipsQuery } from "../../api/queryFns";
+import { queryKeys } from "../../api/queryKeys";
 import Toast from "../../components/Toast";
 import useToast from "../../hooks/useToast";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,13 +16,6 @@ import {
   modalBackdropVariants,
   modalPanelVariants,
 } from "../../utils/modalMotion";
-import {
-  fetchInternships,
-  markInternshipsStale,
-  selectInternshipList,
-  selectInternshipsError,
-  selectInternshipsStatus,
-} from "../../store/slices/internshipsSlice";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -51,7 +46,7 @@ const normalizeInternship = (internship) => ({
 });
 
 function Internships() {
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
     () => ({
@@ -67,11 +62,16 @@ function Internships() {
     [],
   );
 
-  const internships = useSelector(selectInternshipList);
-  const internshipsStatus = useSelector(selectInternshipsStatus);
-  const internshipsError = useSelector(selectInternshipsError);
-  const loading =
-    internshipsStatus === "loading" || internshipsStatus === "idle";
+  const {
+    data: internships = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.internships,
+    queryFn: fetchInternshipsQuery,
+  });
+  const internshipsError = error?.message || null;
+  const loading = isLoading;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(initialForm);
@@ -130,15 +130,9 @@ function Internships() {
   }, [internshipList, appliedSearch, appliedDuration, appliedStatus]);
 
   useEffect(() => {
-    if (internshipsStatus === "idle") {
-      dispatch(fetchInternships());
-    }
-  }, [internshipsStatus, dispatch]);
-
-  useEffect(() => {
     const internshipsUpdatedEvent = getInternshipsUpdatedEventName();
     const syncInternships = () => {
-      dispatch(markInternshipsStale());
+      queryClient.invalidateQueries({ queryKey: queryKeys.internships });
     };
 
     window.addEventListener("storage", syncInternships);
@@ -148,7 +142,7 @@ function Internships() {
       window.removeEventListener("storage", syncInternships);
       window.removeEventListener(internshipsUpdatedEvent, syncInternships);
     };
-  }, [dispatch]);
+  }, [queryClient]);
 
   useEffect(() => {
     setSearchInput(navbarSearch);
@@ -221,7 +215,7 @@ function Internships() {
       await addInternship(normalized);
     }
 
-    dispatch(markInternshipsStale());
+    queryClient.invalidateQueries({ queryKey: queryKeys.internships });
     showToast(
       isEditing
         ? "Internship updated successfully."
@@ -240,7 +234,7 @@ function Internships() {
     if (!deleteTargetId) return;
 
     await deleteInternship(deleteTargetId);
-    dispatch(markInternshipsStale());
+    queryClient.invalidateQueries({ queryKey: queryKeys.internships });
     showToast("Internship deleted successfully.");
 
     if (editingId === deleteTargetId) {

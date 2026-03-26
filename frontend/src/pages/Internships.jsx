@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Calendar, Banknote, Bookmark, Briefcase } from "lucide-react";
 import { createInternApplication } from "../api/internsApi";
 import Toast from "../components/Toast";
@@ -9,16 +10,9 @@ import {
   addInternshipApplication,
   getAppliedInternshipIds,
 } from "../utils/studentActivity";
-import {
-  fetchInternships,
-  markInternshipsStale,
-  selectAppliedInternshipIds,
-  selectInternshipList,
-  selectInternshipsStatus,
-  setAppliedInternshipIds,
-} from "../store/slices/internshipsSlice";
+import { fetchInternshipsQuery } from "../api/queryFns";
+import { queryKeys } from "../api/queryKeys";
 import { selectStudentId } from "../store/slices/authSlice";
-import { markDashboardStale } from "../store/slices/dashboardSlice";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   modalBackdropVariants,
@@ -131,12 +125,10 @@ const InternshipCard = ({ internship, isApplied, onApply }) => (
 );
 
 const Internships = () => {
-  const dispatch = useDispatch();
-  const internshipList = useSelector(selectInternshipList);
-  const internshipsStatus = useSelector(selectInternshipsStatus);
-  const appliedInternshipIds = useSelector(selectAppliedInternshipIds);
+  const queryClient = useQueryClient();
   const studentId = useSelector(selectStudentId);
   const [searchParams] = useSearchParams();
+  const [appliedInternshipIds, setAppliedInternshipIds] = useState([]);
   const [selectedInternship, setSelectedInternship] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const startDateInputRef = useRef(null);
@@ -149,8 +141,16 @@ const Internships = () => {
   const { toast, showToast } = useToast();
   const navbarSearch = (searchParams.get("q") || "").trim().toLowerCase();
 
-  const loading =
-    internshipsStatus === "loading" || internshipsStatus === "idle";
+  const {
+    data: internshipList = [],
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: queryKeys.internships,
+    queryFn: fetchInternshipsQuery,
+  });
+
+  const loading = isLoading || isFetching;
 
   const sortedInternshipList = useMemo(() => {
     return [...internshipList].sort((a, b) => {
@@ -182,27 +182,20 @@ const Internships = () => {
     );
   }, [sortedInternshipList, navbarSearch]);
 
-  // Fetch internship list once; skip on re-mount when already loaded
-  useEffect(() => {
-    if (internshipsStatus === "idle") {
-      dispatch(fetchInternships());
-    }
-  }, [internshipsStatus, dispatch]);
-
   // Sync applied IDs from localStorage whenever studentId resolves
   useEffect(() => {
-    dispatch(setAppliedInternshipIds(getAppliedInternshipIds(studentId)));
-  }, [studentId, dispatch]);
+    setAppliedInternshipIds(getAppliedInternshipIds(studentId));
+  }, [studentId]);
 
   // Cross-tab sync
   useEffect(() => {
     const handleStorage = () => {
-      dispatch(markInternshipsStale());
-      dispatch(setAppliedInternshipIds(getAppliedInternshipIds(studentId)));
+      queryClient.invalidateQueries({ queryKey: queryKeys.internships });
+      setAppliedInternshipIds(getAppliedInternshipIds(studentId));
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [studentId, dispatch]);
+  }, [studentId, queryClient]);
 
   useEffect(() => {
     if (!selectedInternship) return;
@@ -317,8 +310,10 @@ const Internships = () => {
       });
 
       addInternshipApplication(studentId, selectedInternship.id);
-      dispatch(setAppliedInternshipIds(getAppliedInternshipIds(studentId)));
-      dispatch(markDashboardStale());
+      setAppliedInternshipIds(getAppliedInternshipIds(studentId));
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.studentDashboard(studentId),
+      });
       setSelectedInternship(null);
       showToast("Internship application submitted.", "success", 2500);
     } catch (error) {
@@ -328,8 +323,10 @@ const Internships = () => {
 
       if (message.includes("already") && message.includes("applied")) {
         addInternshipApplication(studentId, selectedInternship.id);
-        dispatch(setAppliedInternshipIds(getAppliedInternshipIds(studentId)));
-        dispatch(markDashboardStale());
+        setAppliedInternshipIds(getAppliedInternshipIds(studentId));
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.studentDashboard(studentId),
+        });
         setSelectedInternship(null);
         showToast("You already applied for this internship.", "success", 2500);
       } else {

@@ -1,12 +1,14 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addJob,
   deleteJob,
   getJobsUpdatedEventName,
   updateJob,
 } from "../../api/jobsApi";
+import { fetchJobsQuery } from "../../api/queryFns";
+import { queryKeys } from "../../api/queryKeys";
 import Toast from "../../components/Toast";
 import useToast from "../../hooks/useToast";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,13 +16,6 @@ import {
   modalBackdropVariants,
   modalPanelVariants,
 } from "../../utils/modalMotion";
-import {
-  fetchJobs,
-  markJobsStale,
-  selectJobList,
-  selectJobsError,
-  selectJobsStatus,
-} from "../../store/slices/jobsSlice";
 
 const formatPostedDate = (value) => {
   if (!value) return "-";
@@ -46,7 +41,7 @@ const normalizeJob = (job) => ({
 });
 
 function Jobs() {
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
     () => ({
@@ -61,10 +56,16 @@ function Jobs() {
     [],
   );
 
-  const jobs = useSelector(selectJobList);
-  const jobsStatus = useSelector(selectJobsStatus);
-  const jobsError = useSelector(selectJobsError);
-  const loading = jobsStatus === "loading" || jobsStatus === "idle";
+  const {
+    data: jobs = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: queryKeys.jobs,
+    queryFn: fetchJobsQuery,
+  });
+  const jobsError = error?.message || null;
+  const loading = isLoading;
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(initialForm);
@@ -113,15 +114,9 @@ function Jobs() {
   }, [jobList, appliedSearch, appliedPosition]);
 
   useEffect(() => {
-    if (jobsStatus === "idle") {
-      dispatch(fetchJobs());
-    }
-  }, [jobsStatus, dispatch]);
-
-  useEffect(() => {
     const jobsUpdatedEvent = getJobsUpdatedEventName();
     const syncJobs = () => {
-      dispatch(markJobsStale());
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
     };
 
     window.addEventListener("storage", syncJobs);
@@ -131,7 +126,7 @@ function Jobs() {
       window.removeEventListener("storage", syncJobs);
       window.removeEventListener(jobsUpdatedEvent, syncJobs);
     };
-  }, [dispatch]);
+  }, [queryClient]);
 
   useEffect(() => {
     setSearchInput(navbarSearch);
@@ -196,7 +191,7 @@ function Jobs() {
       await addJob(normalized);
     }
 
-    dispatch(markJobsStale());
+    queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
     showToast(
       isEditing ? "Job updated successfully." : "Job added successfully.",
     );
@@ -213,7 +208,7 @@ function Jobs() {
     if (!deleteTargetId) return;
 
     await deleteJob(deleteTargetId);
-    dispatch(markJobsStale());
+    queryClient.invalidateQueries({ queryKey: queryKeys.jobs });
     showToast("Job deleted successfully.");
 
     if (editingId === deleteTargetId) {

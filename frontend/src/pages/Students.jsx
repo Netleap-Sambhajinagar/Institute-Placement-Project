@@ -1,5 +1,6 @@
 import React, { memo, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Toast from "../components/Toast";
 import StudentForm from "../components/StudentForm";
 import useToast from "../hooks/useToast";
@@ -11,10 +12,11 @@ import {
 import {
   addStudent,
   deleteStudent,
-  getStudents,
   getStudentsUpdatedEventName,
   updateStudent,
 } from "../api/studentsApi";
+import { fetchStudentsQuery } from "../api/queryFns";
+import { queryKeys } from "../api/queryKeys";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -38,6 +40,7 @@ const normalizeStudent = (student) => ({
 });
 
 function Students() {
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const initialForm = useMemo(
     () => ({
@@ -54,22 +57,35 @@ function Students() {
     [],
   );
 
-  const [students, setStudents] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(initialForm);
 
   const [searchInput, setSearchInput] = useState("");
   const [domainInput, setDomainInput] = useState("");
-  const [collegeInput, setCollegeInput] = useState("");
+  // College filter removed
 
   const [appliedSearch, setAppliedSearch] = useState("");
   const [appliedDomain, setAppliedDomain] = useState("");
-  const [appliedCollege, setAppliedCollege] = useState("");
+  // College filter removed
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast, showToast } = useToast();
   const isEditing = editingId !== null;
   const navbarSearch = searchParams.get("q") || "";
+
+  const { data: studentsData = [] } = useQuery({
+    queryKey: queryKeys.students,
+    queryFn: fetchStudentsQuery,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+  });
+
+  const students = useMemo(
+    () =>
+      Array.isArray(studentsData) ? studentsData.map(normalizeStudent) : [],
+    [studentsData],
+  );
 
   const domainOptions = useMemo(
     () => [
@@ -80,18 +96,10 @@ function Students() {
     [students],
   );
 
-  const collegeOptions = useMemo(
-    () => [
-      ...new Set(
-        students.map((student) => student.collegeValue).filter(Boolean),
-      ),
-    ],
-    [students],
-  );
+  // College filter removed
 
   const filteredStudents = useMemo(() => {
     const search = appliedSearch.trim().toLowerCase();
-
     return students.filter((student) => {
       const matchesSearch =
         !search ||
@@ -100,28 +108,18 @@ function Students() {
           student.emailValue,
           student.phoneValue,
           student.domainValue,
-          student.collegeValue,
           student.educationValue,
         ].some((field) => String(field).toLowerCase().includes(search));
-
       const matchesDomain =
         !appliedDomain || student.domainValue === appliedDomain;
-      const matchesCollege =
-        !appliedCollege || student.collegeValue === appliedCollege;
-
-      return matchesSearch && matchesDomain && matchesCollege;
+      return matchesSearch && matchesDomain;
     });
-  }, [students, appliedSearch, appliedDomain, appliedCollege]);
+  }, [students, appliedSearch, appliedDomain]);
 
   useEffect(() => {
-    const syncStudents = async () => {
-      const studentList = await getStudents();
-      const normalized = Array.isArray(studentList)
-        ? studentList.map(normalizeStudent)
-        : [];
-      setStudents(normalized);
+    const syncStudents = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.students });
     };
-    syncStudents();
     const studentsUpdatedEvent = getStudentsUpdatedEventName();
 
     window.addEventListener("storage", syncStudents);
@@ -131,7 +129,7 @@ function Students() {
       window.removeEventListener("storage", syncStudents);
       window.removeEventListener(studentsUpdatedEvent, syncStudents);
     };
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     setSearchInput(navbarSearch);
@@ -202,8 +200,9 @@ function Students() {
     const nextStudents = isEditing
       ? await updateStudent(editingId, normalized)
       : await addStudent(normalized);
-    setStudents(
-      Array.isArray(nextStudents) ? nextStudents.map(normalizeStudent) : [],
+    queryClient.setQueryData(
+      queryKeys.students,
+      Array.isArray(nextStudents) ? nextStudents : [],
     );
     showToast(
       isEditing
@@ -225,8 +224,9 @@ function Students() {
     if (!deleteTarget?.id) return;
 
     const nextStudents = await deleteStudent(deleteTarget.id);
-    setStudents(
-      Array.isArray(nextStudents) ? nextStudents.map(normalizeStudent) : [],
+    queryClient.setQueryData(
+      queryKeys.students,
+      Array.isArray(nextStudents) ? nextStudents : [],
     );
     showToast("Student deleted successfully.");
 
@@ -240,7 +240,6 @@ function Students() {
   const handleApplyFilter = () => {
     setAppliedSearch(searchInput);
     setAppliedDomain(domainInput);
-    setAppliedCollege(collegeInput);
   };
 
   return (
@@ -331,18 +330,7 @@ function Students() {
           ))}
         </select>
 
-        <select
-          value={collegeInput}
-          onChange={(event) => setCollegeInput(event.target.value)}
-          className="border border-gray-300 rounded-none px-4 py-2 w-40 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all cursor-pointer"
-        >
-          <option value="">College</option>
-          {collegeOptions.map((college) => (
-            <option key={college} value={college}>
-              {college}
-            </option>
-          ))}
-        </select>
+        {/* College filter removed */}
 
         <motion.button
           whileTap={{ scale: 0.9 }}

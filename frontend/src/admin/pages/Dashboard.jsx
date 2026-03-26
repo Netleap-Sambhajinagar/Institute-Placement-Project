@@ -26,7 +26,7 @@ import {
 import { Bar, Doughnut, Line, Pie, Radar } from "react-chartjs-2";
 import { Link } from "react-router-dom";
 import { memo, useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentForm from "../../components/StudentForm";
 import Toast from "../../components/Toast";
 import useToast from "../../hooks/useToast";
@@ -39,18 +39,11 @@ import { addStudent, getStudentsUpdatedEventName } from "../../api/studentsApi";
 import { getCoursesUpdatedEventName } from "../../api/coursesApi";
 import { getInternshipsUpdatedEventName } from "../../api/internshipsApi";
 import { getJobsUpdatedEventName } from "../../api/jobsApi";
-import { getCourses } from "../../api/coursesApi";
-import { getCourseEnrollments } from "../../api/courseEnrollmentsApi";
-import { getInternships } from "../../api/internshipsApi";
-import { getJobs } from "../../api/jobsApi";
-import { getPlacedStudents } from "../../api/placedStudentsApi";
-import { getStudents } from "../../api/studentsApi";
 import {
-  fetchAdminDashboard,
-  markAdminDashboardStale,
-  selectAdminDashboardData,
-  selectAdminDashboardStatus,
-} from "../../store/slices/adminDashboardSlice";
+  fetchAdminDashboardQuery,
+  fetchAdminInsightsQuery,
+} from "../../api/queryFns";
+import { queryKeys } from "../../api/queryKeys";
 
 ChartJS.register(
   CategoryScale,
@@ -70,6 +63,16 @@ const dashboardViews = [
   { id: "coursePlacement", label: "Course & Placement" },
   { id: "internData", label: "Intern Data" },
 ];
+
+const fallbackDashboardData = {
+  stats: {
+    totalStudents: 0,
+    activeCourses: 0,
+    internships: 0,
+    placements: 0,
+  },
+  recentStudents: [],
+};
 
 const safeText = (value) => String(value || "").trim();
 
@@ -260,7 +263,7 @@ const defaultRadarOptions = {
 };
 
 function Dashboard() {
-  const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const initialForm = useMemo(
     () => ({
       name: "",
@@ -276,8 +279,29 @@ function Dashboard() {
     [],
   );
 
-  const dashboardData = useSelector(selectAdminDashboardData);
-  const dashboardStatus = useSelector(selectAdminDashboardStatus);
+  const {
+    data: dashboardData = fallbackDashboardData,
+    isLoading: dashboardLoading,
+  } = useQuery({
+    queryKey: queryKeys.adminDashboard,
+    queryFn: fetchAdminDashboardQuery,
+  });
+
+  const {
+    data: insightData = {
+      courses: [],
+      enrollments: [],
+      internships: [],
+      jobs: [],
+      placedStudents: [],
+      students: [],
+    },
+    isLoading: insightLoading,
+  } = useQuery({
+    queryKey: queryKeys.adminInsights,
+    queryFn: fetchAdminInsightsQuery,
+  });
+
   const [activeView, setActiveView] = useState("home");
   const [showStudentForm, setShowStudentForm] = useState(false);
   const [studentTrendView, setStudentTrendView] = useState("month");
@@ -286,18 +310,7 @@ function Dashboard() {
   const [hoveredInternTimelineIndex, setHoveredInternTimelineIndex] =
     useState(null);
   const [formData, setFormData] = useState(initialForm);
-  const [insightData, setInsightData] = useState({
-    courses: [],
-    enrollments: [],
-    internships: [],
-    jobs: [],
-    placedStudents: [],
-    students: [],
-  });
-  const [insightLoading, setInsightLoading] = useState(true);
   const { toast, showToast } = useToast();
-  const dashboardLoading =
-    dashboardStatus === "loading" || dashboardStatus === "idle";
 
   const derived = useMemo(() => {
     const courses = Array.isArray(insightData.courses)
@@ -540,7 +553,9 @@ function Dashboard() {
         },
       },
       onHover: (_, activeElements, chart) => {
-        chart.canvas.style.cursor = activeElements.length ? "pointer" : "default";
+        chart.canvas.style.cursor = activeElements.length
+          ? "pointer"
+          : "default";
         if (!activeElements.length) return;
         const nextIndex = activeElements[0].index;
         if (nextIndex !== hoveredEnrollmentIndex) {
@@ -575,7 +590,8 @@ function Dashboard() {
                 items.find((item) => item.dataset.label === "Internships")
                   ?.parsed.y || 0;
               const jobs =
-                items.find((item) => item.dataset.label === "Jobs")?.parsed.y || 0;
+                items.find((item) => item.dataset.label === "Jobs")?.parsed.y ||
+                0;
               return `Total Opportunities: ${internships + jobs}`;
             },
           },
@@ -628,7 +644,9 @@ function Dashboard() {
         },
       },
       onHover: (_, activeElements, chart) => {
-        chart.canvas.style.cursor = activeElements.length ? "pointer" : "default";
+        chart.canvas.style.cursor = activeElements.length
+          ? "pointer"
+          : "default";
         if (!activeElements.length) return;
         const nextIndex = activeElements[0].index;
         if (nextIndex !== hoveredCompanyIndex) {
@@ -688,7 +706,9 @@ function Dashboard() {
         },
       },
       onHover: (_, activeElements, chart) => {
-        chart.canvas.style.cursor = activeElements.length ? "pointer" : "default";
+        chart.canvas.style.cursor = activeElements.length
+          ? "pointer"
+          : "default";
         if (!activeElements.length) return;
         const nextIndex = activeElements[0].index;
         if (nextIndex !== hoveredInternTimelineIndex) {
@@ -847,7 +867,8 @@ function Dashboard() {
           label: "Internships",
           data: derived.internshipStatusChart.map((item) => item.count),
           backgroundColor: derived.internshipStatusChart.map(
-            (_, index) => internshipStatusPalette[index % internshipStatusPalette.length],
+            (_, index) =>
+              internshipStatusPalette[index % internshipStatusPalette.length],
           ),
           borderColor: "#ffffff",
           borderWidth: 2,
@@ -965,7 +986,8 @@ function Dashboard() {
           label: "Openings",
           data: derived.topCompanies.map((item) => item.count),
           backgroundColor: derived.topCompanies.map(
-            (_, index) => topCompaniesPalette[index % topCompaniesPalette.length],
+            (_, index) =>
+              topCompaniesPalette[index % topCompaniesPalette.length],
           ),
           hoverBackgroundColor: "rgba(15, 23, 42, 0.95)",
           borderColor: "rgba(255, 255, 255, 0.85)",
@@ -1119,20 +1141,11 @@ function Dashboard() {
 
   const highlightedCompany = useMemo(() => {
     if (!topCompaniesMeta.length) return null;
-    if (
-      hoveredCompanyIndex !== null &&
-      topCompaniesMeta[hoveredCompanyIndex]
-    ) {
+    if (hoveredCompanyIndex !== null && topCompaniesMeta[hoveredCompanyIndex]) {
       return topCompaniesMeta[hoveredCompanyIndex];
     }
     return topCompaniesMeta[0];
   }, [topCompaniesMeta, hoveredCompanyIndex]);
-
-  useEffect(() => {
-    if (dashboardStatus === "idle") {
-      dispatch(fetchAdminDashboard());
-    }
-  }, [dashboardStatus, dispatch]);
 
   useEffect(() => {
     if (!derived.courseEnrollmentRows.length) {
@@ -1179,71 +1192,14 @@ function Dashboard() {
   }, [derived.internTimelineRows, hoveredInternTimelineIndex]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const loadInsights = async () => {
-      setInsightLoading(true);
-
-      try {
-        const [
-          coursesResponse,
-          enrollments,
-          internships,
-          jobs,
-          placedStudents,
-          students,
-        ] = await Promise.all([
-          getCourses(),
-          getCourseEnrollments(),
-          getInternships(),
-          getJobs(),
-          getPlacedStudents(),
-          getStudents(),
-        ]);
-
-        if (!isMounted) return;
-
-        setInsightData({
-          courses: coursesResponse?.data || [],
-          enrollments: Array.isArray(enrollments) ? enrollments : [],
-          internships: Array.isArray(internships) ? internships : [],
-          jobs: Array.isArray(jobs) ? jobs : [],
-          placedStudents: Array.isArray(placedStudents) ? placedStudents : [],
-          students: Array.isArray(students) ? students : [],
-        });
-      } catch {
-        if (!isMounted) return;
-
-        setInsightData({
-          courses: [],
-          enrollments: [],
-          internships: [],
-          jobs: [],
-          placedStudents: [],
-          students: [],
-        });
-      } finally {
-        if (isMounted) {
-          setInsightLoading(false);
-        }
-      }
-    };
-
-    loadInsights();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [dashboardStatus]);
-
-  useEffect(() => {
     const studentsUpdatedEvent = getStudentsUpdatedEventName();
     const coursesUpdatedEvent = getCoursesUpdatedEventName();
     const internshipsUpdatedEvent = getInternshipsUpdatedEventName();
     const jobsUpdatedEvent = getJobsUpdatedEventName();
 
     const syncDashboard = () => {
-      dispatch(markAdminDashboardStale());
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminDashboard });
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminInsights });
     };
 
     window.addEventListener("storage", syncDashboard);
@@ -1259,7 +1215,7 @@ function Dashboard() {
       window.removeEventListener(internshipsUpdatedEvent, syncDashboard);
       window.removeEventListener(jobsUpdatedEvent, syncDashboard);
     };
-  }, [dispatch]);
+  }, [queryClient]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -1297,7 +1253,8 @@ function Dashboard() {
     }
 
     await addStudent(normalized);
-    dispatch(markAdminDashboardStale());
+    queryClient.invalidateQueries({ queryKey: queryKeys.adminDashboard });
+    queryClient.invalidateQueries({ queryKey: queryKeys.adminInsights });
     showToast("Student added successfully.");
     handleCloseStudentForm();
   };
@@ -1695,7 +1652,8 @@ function Dashboard() {
                     Course Enrollment Funnel
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    Hover bars to inspect enrollment count and contribution share.
+                    Hover bars to inspect enrollment count and contribution
+                    share.
                   </p>
                 </div>
                 <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5">
@@ -1727,13 +1685,17 @@ function Dashboard() {
                       </p>
                       <div className="mt-2 grid grid-cols-2 gap-2">
                         <div className="rounded-lg bg-slate-100 px-2 py-2">
-                          <p className="text-[10px] uppercase text-slate-500">Enrolled</p>
+                          <p className="text-[10px] uppercase text-slate-500">
+                            Enrolled
+                          </p>
                           <p className="text-base font-bold text-slate-900 mt-1">
                             {hoveredEnrollmentCourse?.enrolled || 0}
                           </p>
                         </div>
                         <div className="rounded-lg bg-slate-100 px-2 py-2">
-                          <p className="text-[10px] uppercase text-slate-500">Share</p>
+                          <p className="text-[10px] uppercase text-slate-500">
+                            Share
+                          </p>
                           <p className="text-base font-bold text-slate-900 mt-1">
                             {derived.enrollmentsCount > 0
                               ? `${(
@@ -1944,20 +1906,27 @@ function Dashboard() {
                       </p>
                       <div className="mt-2 grid grid-cols-2 gap-2">
                         <div className="rounded-lg bg-cyan-50 px-2 py-2">
-                          <p className="text-[10px] uppercase text-cyan-700">Internships</p>
+                          <p className="text-[10px] uppercase text-cyan-700">
+                            Internships
+                          </p>
                           <p className="text-base font-bold text-slate-900 mt-1">
                             {highlightedInternTimelineRow?.internships || 0}
                           </p>
                         </div>
                         <div className="rounded-lg bg-emerald-50 px-2 py-2">
-                          <p className="text-[10px] uppercase text-emerald-700">Jobs</p>
+                          <p className="text-[10px] uppercase text-emerald-700">
+                            Jobs
+                          </p>
                           <p className="text-base font-bold text-slate-900 mt-1">
                             {highlightedInternTimelineRow?.jobs || 0}
                           </p>
                         </div>
                       </div>
                       <p className="text-xs text-slate-500 mt-2">
-                        Total opportunities: {Number(highlightedInternTimelineRow?.internships || 0) + Number(highlightedInternTimelineRow?.jobs || 0)}
+                        Total opportunities:{" "}
+                        {Number(
+                          highlightedInternTimelineRow?.internships || 0,
+                        ) + Number(highlightedInternTimelineRow?.jobs || 0)}
                       </p>
                     </div>
 
@@ -1966,7 +1935,9 @@ function Dashboard() {
                         <button
                           key={row.key}
                           type="button"
-                          onMouseEnter={() => setHoveredInternTimelineIndex(index)}
+                          onMouseEnter={() =>
+                            setHoveredInternTimelineIndex(index)
+                          }
                           className={`w-full text-left rounded-lg px-2.5 py-2 transition-colors cursor-pointer ${
                             index === hoveredInternTimelineIndex ||
                             (hoveredInternTimelineIndex === null &&
@@ -1994,7 +1965,7 @@ function Dashboard() {
 
             <div className="bg-white border border-slate-100 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
               <h3 className="text-lg font-bold text-slate-900">
-                Internship Status 
+                Internship Status
               </h3>
               {charts.internshipStatus.labels.length > 0 ? (
                 <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-sky-50/40 to-indigo-50/40 p-3 sm:p-4">
@@ -2038,7 +2009,9 @@ function Dashboard() {
                                 {item.label}
                               </p>
                             </div>
-                            <p className="text-sm font-bold text-slate-900">{item.value}</p>
+                            <p className="text-sm font-bold text-slate-900">
+                              {item.value}
+                            </p>
                           </div>
                           <div className="mt-2 h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
                             <div
@@ -2049,7 +2022,9 @@ function Dashboard() {
                               }}
                             />
                           </div>
-                          <p className="mt-1 text-[11px] text-slate-500">{item.percent}% share</p>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            {item.percent}% share
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -2103,7 +2078,7 @@ function Dashboard() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
             <div className="bg-white border border-slate-100 rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
               <h3 className="text-lg font-bold text-slate-900">
-                Category Split 
+                Category Split
               </h3>
               {charts.internshipCategory.labels.length > 0 ? (
                 <div className="h-72">
@@ -2133,7 +2108,8 @@ function Dashboard() {
                   Top Hiring Companies
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Ranked by openings with contribution share and quick comparison.
+                  Ranked by openings with contribution share and quick
+                  comparison.
                 </p>
               </div>
               <span className="rounded-full bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-1">
@@ -2151,7 +2127,8 @@ function Dashboard() {
                     <div className="mt-2 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-bold text-slate-900 truncate">
-                          #{highlightedCompany?.rank || 1} {highlightedCompany?.label || "-"}
+                          #{highlightedCompany?.rank || 1}{" "}
+                          {highlightedCompany?.label || "-"}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {highlightedCompany?.share || "0.0"}% contribution
@@ -2199,7 +2176,9 @@ function Dashboard() {
                       <div className="mt-2 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                         <div
                           className="h-full rounded-full bg-slate-700"
-                          style={{ width: `${Math.min(Number(company.share), 100)}%` }}
+                          style={{
+                            width: `${Math.min(Number(company.share), 100)}%`,
+                          }}
                         />
                       </div>
                       <p className="mt-1 text-[11px] text-slate-500 flex items-center justify-between gap-2">
