@@ -7,6 +7,7 @@ import {
   getCoursesUpdatedEventName,
   updateCourse,
 } from "../../api/coursesApi";
+import { getCourseEnrollments } from "../../api/courseEnrollmentsApi";
 import { fetchCoursesQuery } from "../../api/queryFns";
 import { queryKeys } from "../../api/queryKeys";
 import Toast from "../../components/Toast";
@@ -68,6 +69,22 @@ const toFormState = (course) => ({
   includesText: (course.includes || []).join("\n"),
 });
 
+const formatFees = (course) => {
+  const rawValue =
+    course?.fees ?? course?.fee ?? course?.price ?? course?.amount ?? null;
+
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return "-";
+  }
+
+  const numericValue = Number(rawValue);
+  if (Number.isNaN(numericValue)) {
+    return String(rawValue);
+  }
+
+  return `Rs ${numericValue.toLocaleString()}`;
+};
+
 function Courses() {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -107,7 +124,42 @@ function Courses() {
     queryFn: () => fetchCoursesQuery(queryParams),
   });
 
+  const { data: courseEnrollments = [] } = useQuery({
+    queryKey: ["courseEnrollments"],
+    queryFn: getCourseEnrollments,
+  });
+
   const loading = isLoading;
+
+  const enrolledCountByCourseId = useMemo(() => {
+    const counts = new Map();
+
+    if (!Array.isArray(courseEnrollments)) {
+      return counts;
+    }
+
+    const uniqueByCourse = new Map();
+    courseEnrollments.forEach((enrollment) => {
+      const courseId = Number(enrollment?.courseId);
+      const studentId = Number(enrollment?.studentId);
+
+      if (!Number.isFinite(courseId) || !Number.isFinite(studentId)) {
+        return;
+      }
+
+      if (!uniqueByCourse.has(courseId)) {
+        uniqueByCourse.set(courseId, new Set());
+      }
+
+      uniqueByCourse.get(courseId).add(studentId);
+    });
+
+    uniqueByCourse.forEach((studentSet, courseId) => {
+      counts.set(courseId, studentSet.size);
+    });
+
+    return counts;
+  }, [courseEnrollments]);
 
   useEffect(() => {
     const syncCourses = () => {
@@ -130,6 +182,14 @@ function Courses() {
     setQueryParams(buildFilterParams({ search: navbarSearch }));
   }, [navbarSearch]);
 
+  useEffect(() => {
+    setQueryParams({
+      search: searchTerm || undefined,
+      duration: durationFilter || undefined,
+      status: statusFilter || undefined,
+    });
+  }, [searchTerm, durationFilter, statusFilter]);
+
   const durationOptions = useMemo(() => {
     const uniqueDurations = [
       ...new Set(courses.map((course) => course.duration).filter(Boolean)),
@@ -139,6 +199,13 @@ function Courses() {
 
   const onApplyFilter = () => {
     setQueryParams(buildFilterParams());
+  };
+
+  const onClearFilter = () => {
+    setSearchTerm("");
+    setDurationFilter("");
+    setStatusFilter("");
+    setQueryParams({});
   };
 
   const onOpenAddModal = () => {
@@ -277,6 +344,15 @@ function Courses() {
         >
           Apply Filter
         </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={onClearFilter}
+          className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 rounded-none text-sm font-bold transition-colors rounded-sm cursor-pointer"
+        >
+          Clear Filter
+        </motion.button>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -331,10 +407,10 @@ function Courses() {
                         {course.duration || "-"}
                       </td>
                       <td className="p-4 text-sm text-gray-600 whitespace-nowrap text-center">
-                        Rs {Number(course.fees || 0).toLocaleString()}
+                        {course.domain === "Unpaid" || course.branch === "Unpaid" ? "Unpaid" : formatFees(course)}
                       </td>
                       <td className="p-4 text-sm text-gray-600 whitespace-nowrap text-center">
-                        {course.students || 0}
+                        {enrolledCountByCourseId.get(Number(course.id)) || 0}
                       </td>
                       <td
                         className={`p-4 text-sm font-semibold whitespace-nowrap text-center ${course.status === "Active" ? "text-green-600" : "text-gray-500"}`}

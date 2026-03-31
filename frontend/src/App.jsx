@@ -17,6 +17,7 @@ import Courses from "./pages/Courses";
 import CourseDetails from "./pages/CourseDetails";
 import Jobs from "./pages/Jobs";
 import Internships from "./pages/Internships";
+import InternshipDetails from "./pages/InternshipDetails";
 import AboutPortal from "./pages/AboutPortal";
 import StudentProfile from "./pages/StudentProfile";
 import Login from "./pages/Login";
@@ -78,6 +79,7 @@ const App = () => {
           <Route path="/courses/:id" element={<CourseDetails />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/internships" element={<Internships />} />
+          <Route path="/internships/:id" element={<InternshipDetails />} />
           <Route path="/about" element={<AboutPortal />} />
           <Route path="/profile/:id" element={<StudentProfile />} />
           <Route path="*" element={<Navigate to="/" replace />} />

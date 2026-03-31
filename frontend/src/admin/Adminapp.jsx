@@ -5,6 +5,7 @@ import Students from "../pages/Students";
 import Courses from "./pages/Courses";
 import CourseDetails from "./pages/CourseDetails";
 import Internships from "./pages/Internships";
+import InternshipDetails from "./pages/InternshipDetails";
 import Jobs from "./pages/Jobs";
 import PlacedStudents from "./pages/PlacedStudents";
 import StudentProfile from "../pages/StudentProfile";
@@ -19,6 +20,7 @@ function Adminapp() {
         <Route path="courses" element={<Courses />} />
         <Route path="courses/:id" element={<CourseDetails />} />
         <Route path="internships" element={<Internships />} />
+        <Route path="internships/:id" element={<InternshipDetails />} />
         <Route path="jobs" element={<Jobs />} />
         <Route path="placed-students" element={<PlacedStudents />} />
       </Route>

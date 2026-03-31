@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import sendMail from "../utils/sendMail.js";
+// import sendMail from "../utils/sendMail.js"; // Removed nodemailer fallback
+import sendBrevoEmail from "../utils/sendBrevoEmail.js";
 import { Student } from "../models/studentsModel.js";
 import { Admin } from "../models/adminModel.js";
 import { redis } from "../config/redis.js";
@@ -91,12 +92,12 @@ const studentRegister = async (req, res) => {
     );
 
     try {
-      await sendMail(
+      await sendBrevoEmail(
         normalizedEmail,
         "Verify OTP",
-        `Your OTP is ${otp}. It will expire in ${Math.floor(OTP_TTL_SECONDS / 60)} minutes.`,
+        `<p>Your OTP is <b>${otp}</b>. It will expire in ${Math.floor(OTP_TTL_SECONDS / 60)} minutes.</p>`,
       );
-    } catch {
+    } catch (err) {
       await redis.del(otpKey);
       return res.status(503).json({
         message: "Unable to send OTP email right now. Please try again.",

@@ -27,6 +27,15 @@ function formatDate(value) {
   return parsed.toLocaleDateString("en-GB");
 }
 
+function getYearFromDate(value) {
+  if (!value) return null;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed.getFullYear();
+}
+
 const normalizeStudent = (student) => ({
   ...student,
   nameValue: student.name || "-",
@@ -37,6 +46,7 @@ const normalizeStudent = (student) => ({
   collegeValue: student.college || "-",
   domainValue: student.domain || "-",
   dobValue: student.DOB || "",
+  admissionDateValue: student.createdAt || student.admissionDate || "",
 });
 
 function Students() {
@@ -63,10 +73,12 @@ function Students() {
 
   const [searchInput, setSearchInput] = useState("");
   const [domainInput, setDomainInput] = useState("");
+  const [yearSortInput, setYearSortInput] = useState("");
   // College filter removed
 
   const [appliedSearch, setAppliedSearch] = useState("");
   const [appliedDomain, setAppliedDomain] = useState("");
+  const [appliedYearSort, setAppliedYearSort] = useState("");
   // College filter removed
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toast, showToast } = useToast();
@@ -96,6 +108,18 @@ function Students() {
     [students],
   );
 
+  const admissionYearOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          students
+            .map((student) => getYearFromDate(student.admissionDateValue))
+            .filter((year) => year !== null),
+        ),
+      ].sort((a, b) => b - a),
+    [students],
+  );
+
   // College filter removed
 
   const filteredStudents = useMemo(() => {
@@ -112,9 +136,13 @@ function Students() {
         ].some((field) => String(field).toLowerCase().includes(search));
       const matchesDomain =
         !appliedDomain || student.domainValue === appliedDomain;
-      return matchesSearch && matchesDomain;
+      const admissionYear = getYearFromDate(student.admissionDateValue);
+      const matchesAdmissionYear =
+        !appliedYearSort || String(admissionYear) === appliedYearSort;
+
+      return matchesSearch && matchesDomain && matchesAdmissionYear;
     });
-  }, [students, appliedSearch, appliedDomain]);
+  }, [students, appliedSearch, appliedDomain, appliedYearSort]);
 
   useEffect(() => {
     const syncStudents = () => {
@@ -135,6 +163,18 @@ function Students() {
     setSearchInput(navbarSearch);
     setAppliedSearch(navbarSearch);
   }, [navbarSearch]);
+
+  useEffect(() => {
+    setAppliedSearch(searchInput);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setAppliedDomain(domainInput);
+  }, [domainInput]);
+
+  useEffect(() => {
+    setAppliedYearSort(yearSortInput);
+  }, [yearSortInput]);
 
   const handleOpenAddForm = () => {
     setEditingId(null);
@@ -172,6 +212,8 @@ function Students() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    const trimmedPassword = formData.password.trim();
+
     const normalized = {
       name: formData.name.trim(),
       email: formData.email.trim(),
@@ -184,7 +226,9 @@ function Students() {
     };
 
     if (!isEditing) {
-      normalized.password = formData.password;
+      normalized.password = trimmedPassword;
+    } else if (trimmedPassword) {
+      normalized.password = trimmedPassword;
     }
 
     if (
@@ -240,6 +284,16 @@ function Students() {
   const handleApplyFilter = () => {
     setAppliedSearch(searchInput);
     setAppliedDomain(domainInput);
+    setAppliedYearSort(yearSortInput);
+  };
+
+  const handleClearFilter = () => {
+    setSearchInput("");
+    setDomainInput("");
+    setYearSortInput("");
+    setAppliedSearch("");
+    setAppliedDomain("");
+    setAppliedYearSort("");
   };
 
   return (
@@ -308,7 +362,7 @@ function Students() {
       </AnimatePresence>
 
       {/* Filter Section */}
-      <div className="bg-white p-5 rounded-none shadow-sm border border-gray-100 flex gap-4 items-center flex-wrap">
+      <div className="bg-white p-5 rounded-none shadow-sm border border-gray-100 flex gap-4 items-center flex-nowrap overflow-x-auto">
         <input
           type="text"
           placeholder="Search Student"
@@ -330,16 +384,40 @@ function Students() {
           ))}
         </select>
 
+        <select
+          value={yearSortInput}
+          onChange={(event) => setYearSortInput(event.target.value)}
+          className="border border-gray-300 rounded-none px-4 py-2 w-52 text-sm focus:outline-none focus:ring-1 focus:ring-red-500 transition-all cursor-pointer"
+        >
+          <option value="">Admission Year</option>
+          {admissionYearOptions.map((year) => (
+            <option key={year} value={String(year)}>
+              {year}
+            </option>
+          ))}
+        </select>
+
         {/* College filter removed */}
 
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          type="button"
-          onClick={handleApplyFilter}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-none text-sm font-bold transition-colors rounded-sm cursor-pointer"
-        >
-          Apply Filter
-        </motion.button>
+        <div className="flex items-center gap-3 flex-nowrap">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            type="button"
+            onClick={handleApplyFilter}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-none text-sm font-bold transition-colors rounded-sm cursor-pointer whitespace-nowrap"
+          >
+            Apply Filter
+          </motion.button>
+
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            type="button"
+            onClick={handleClearFilter}
+            className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 rounded-none text-sm font-bold transition-colors rounded-sm cursor-pointer whitespace-nowrap"
+          >
+            Clear Filter
+          </motion.button>
+        </div>
       </div>
 
       {/* Student List */}

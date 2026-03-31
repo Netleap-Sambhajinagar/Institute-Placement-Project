@@ -173,9 +173,24 @@ function PlacedStudents() {
     };
   }, []);
 
+  useEffect(() => {
+    setAppliedSearch(searchInput);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setAppliedCompanyFilter(companyFilterInput);
+  }, [companyFilterInput]);
+
   const handleApplyFilter = () => {
     setAppliedSearch(searchInput);
     setAppliedCompanyFilter(companyFilterInput);
+  };
+
+  const handleClearFilter = () => {
+    setSearchInput("");
+    setCompanyFilterInput("");
+    setAppliedSearch("");
+    setAppliedCompanyFilter("");
   };
 
   const handleOpenAddModal = () => {
@@ -339,6 +354,15 @@ function PlacedStudents() {
           className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
         >
           Apply Filter
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={handleClearFilter}
+          className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-bold transition-colors rounded-sm cursor-pointer"
+        >
+          Clear Filter
         </motion.button>
       </div>
 

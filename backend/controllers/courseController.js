@@ -12,6 +12,7 @@ const createCourse = async (req, res) => {
     overview,
     what_you_will_learn,
     course_features,
+    fees,
   } = req.body;
 
   if (!title || !level || !instructor) {
@@ -37,6 +38,7 @@ const createCourse = async (req, res) => {
       overview,
       what_you_will_learn,
       course_features,
+      fees: Number(fees) || 0,
     });
     return res.status(201).json(course);
   } catch (error) {
@@ -68,8 +70,42 @@ const getCourseById = async (req, res) => {
 };
 
 const updateCourse = async (req, res) => {
+  const {
+    title,
+    level,
+    instructor,
+    img,
+    duration,
+    status,
+    branch,
+    overview,
+    what_you_will_learn,
+    course_features,
+    fees,
+  } = req.body;
+
+  const normalizedStatus = status
+    ? String(status).toLowerCase() === "inactive"
+      ? "Inactive"
+      : "Active"
+    : undefined;
+
   try {
-    const [updatedCount] = await Course.update(req.body, {
+    const updateData = {
+      ...(title && { title }),
+      ...(level && { level }),
+      ...(instructor && { instructor }),
+      ...(img !== undefined && { img }),
+      ...(duration && { duration }),
+      ...(normalizedStatus && { status: normalizedStatus }),
+      ...(branch && { branch }),
+      ...(overview && { overview }),
+      ...(what_you_will_learn !== undefined && { what_you_will_learn }),
+      ...(course_features !== undefined && { course_features }),
+      ...(fees !== undefined && { fees: Number(fees) || 0 }),
+    };
+
+    const [updatedCount] = await Course.update(updateData, {
       where: { id: req.params.id },
     });
 

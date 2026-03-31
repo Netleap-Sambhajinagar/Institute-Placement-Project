@@ -17,7 +17,7 @@ import { useState, useRef, useEffect } from "react";
 const StudentSidebar = ({ isOpen, onClose, studentInfo }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem("studentSidebarWidth");
-    return saved ? parseInt(saved) : 340; // Default 340px (25vw approximate)
+    return saved ? parseInt(saved) : 340; 
   });
   const [isDragging, setIsDragging] = useState(false);
   const sidebarRef = useRef(null);
@@ -140,16 +140,6 @@ const StudentSidebar = ({ isOpen, onClose, studentInfo }) => {
             </>
           )}
         </div>
-
-        {!isCollapsed && (
-          <div className="student-sidebar-details">
-            {details.map((detail, idx) => (
-              <div key={idx} className="student-sidebar-detail-item">
-                <strong>{detail.label}:</strong> <span>{detail.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
 
         <nav className="student-sidebar-menu" aria-label="Student menu">
           <Link

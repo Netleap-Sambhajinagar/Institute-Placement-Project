@@ -27,6 +27,7 @@ const parseList = (value) => {
 
 const normalizeCourse = (course) => ({
   ...course,
+  fees: course.fees ?? 0,
   imageUrl: course.imageUrl || course.img || "",
   status: course.status || "Active",
   hours: course.hours || course.duration,
@@ -41,6 +42,7 @@ const toBackendPayload = (payload) => ({
   status: payload.status || "Active",
   img: payload.imageUrl || payload.img || "",
   duration: Number(payload.duration) || 0,
+  fees: Number(payload.fees) || 0,
   branch: payload.branch || payload.domain || "General",
   overview: payload.overview || "",
   what_you_will_learn: Array.isArray(payload.whatYouLearn)

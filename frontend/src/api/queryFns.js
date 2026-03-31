@@ -5,7 +5,7 @@ import {
   hasCourseEnrollment,
 } from "./courseEnrollmentsApi";
 import { getCourseById, getCourses } from "./coursesApi";
-import { getInternships } from "./internshipsApi";
+import { getInternships, getInternshipById } from "./internshipsApi";
 import { getJobs } from "./jobsApi";
 import { getPlacedStudents } from "./placedStudentsApi";
 import { getStudents } from "./studentsApi";
@@ -96,4 +96,9 @@ export const fetchCourseEnrollmentStatusQuery = async ({
   }
 
   return await hasCourseEnrollment({ studentId, courseId });
+};
+
+export const fetchInternshipDetailsQuery = async (internshipId) => {
+  const response = await getInternshipById(internshipId);
+  return response || null;
 };

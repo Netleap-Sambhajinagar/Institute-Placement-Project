@@ -50,6 +50,11 @@ const Course = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    fees: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0,
+    },
   },
   {
     tableName: "courses",

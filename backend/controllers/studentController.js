@@ -82,7 +82,19 @@ const createStudent = async (req, res) => {
 // Update student by ID
 const updateStudent = async (req, res) => {
   try {
-    const [updatedCount] = await Student.update(req.body, {
+    const updatePayload = { ...req.body };
+
+    if (typeof updatePayload.password === "string") {
+      const trimmedPassword = updatePayload.password.trim();
+
+      if (trimmedPassword) {
+        updatePayload.password = await bcrypt.hash(trimmedPassword, 10);
+      } else {
+        delete updatePayload.password;
+      }
+    }
+
+    const [updatedCount] = await Student.update(updatePayload, {
       where: { id: req.params.id },
     });
 

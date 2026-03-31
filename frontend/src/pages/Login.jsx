@@ -4,11 +4,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { loginAdmin, loginStudent } from "../api/authApi";
 import { setAdminAuth, setStudentAuth } from "../store/slices/authSlice";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const [role, setRole] = useState("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useDispatch();
@@ -83,14 +85,24 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
             </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -106,10 +118,10 @@ export default function Login() {
             </select>
           </div>
 
-          <motion.button whileTap={{ scale: 0.9 }}
+          <motion.button whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={loading}
-            className={`rounded-sm w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm transition-colors mt-2 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+            className={`rounded-sm w-full py-2.5 cursor-pointer px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm transition-colors mt-2 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
           >
             {loading ? "Signing in..." : "Log In"}
           </motion.button>

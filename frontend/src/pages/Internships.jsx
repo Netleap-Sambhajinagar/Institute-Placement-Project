@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Calendar, Banknote, Bookmark, Briefcase } from "lucide-react";
 import { createInternApplication } from "../api/internsApi";
@@ -48,6 +48,17 @@ const normalizeInternCategory = (value) => {
   return "free";
 };
 
+const formatWorkType = (value) => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return "Onsite";
+  if (normalized === "on site") return "Onsite";
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const isInternshipClosed = (internship) =>
   String(internship?.status || "")
     .trim()
@@ -56,21 +67,22 @@ const isInternshipClosed = (internship) =>
 const InternshipCard = ({ internship, isApplied, onApply }) => (
   <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
     <h3 className="text-xl font-bold text-slate-800">{internship.title}</h3>
-    <p className="text-red-600 font-medium mt-1 mb-1 text-sm">
-      {internship.category}
-    </p>
-    <p className="text-gray-400 mb-5 text-xs">{internship.branch}</p>
 
-    <div className="space-y-3 mb-8">
+    <div className="space-y-3 mt-4 mb-8">
       <div className="flex items-center text-gray-500 text-sm italic">
         <MapPin size={16} className="mr-3 text-gray-400 shrink-0" />{" "}
-        {internship.location}
+        {internship.location || internship.branch}
       </div>
       <div className="flex items-center text-gray-500 text-sm italic">
         <Calendar size={16} className="mr-3 text-gray-400 shrink-0" />{" "}
         {internship.duration} {internship.duration === 1 ? "month" : "months"}
       </div>
-      {internship.stipend ? (
+      <div className="flex items-center text-gray-500 text-sm italic">
+        <Briefcase size={16} className="mr-3 text-gray-400 shrink-0" />
+        {formatWorkType(internship.work_type)}
+      </div>
+      {normalizeInternCategory(internship.category) === "paid" &&
+      internship.stipend ? (
         <div className="flex items-center text-green-600 text-sm font-medium">
           <Banknote size={16} className="mr-3 shrink-0" /> ₹
           {internship.stipend.toLocaleString()}/month
@@ -88,13 +100,19 @@ const InternshipCard = ({ internship, isApplied, onApply }) => (
       </p>
     )}
 
-    <div className="flex items-center gap-3 mt-auto">
+    <div className="flex items-center gap-2 mt-auto flex-wrap">
       {isInternshipClosed(internship) && (
         <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-semibold">
           Closed
         </span>
       )}
-      <motion.button
+      <Link
+        to={`/internships/${internship.id}`}
+        className="flex-1 text-white bg-red-600 text-center cursor-pointer font-bold py-2.5 rounded-lg transition-colors"
+      >
+        View Details
+      </Link>
+      {/* <motion.button
         whileTap={{ scale: 0.9 }}
         type="button"
         onClick={() => onApply(internship.id)}
@@ -112,11 +130,12 @@ const InternshipCard = ({ internship, isApplied, onApply }) => (
           : isInternshipClosed(internship)
             ? "Closed"
             : "Apply Now"}
-      </motion.button>
+      </motion.button> */}
+      
       <motion.button
         whileTap={{ scale: 0.9 }}
         type="button"
-        className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 rounded-sm cursor-pointer"
+        className="p-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
       >
         <Bookmark size={20} className="text-gray-400" />
       </motion.button>

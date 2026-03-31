@@ -7,6 +7,7 @@ export const queryKeys = {
   adminInsights: ["adminInsights"],
   studentDashboard: (studentId) => ["studentDashboard", Number(studentId) || 0],
   courseDetails: (courseId) => ["courseDetails", String(courseId || "")],
+  internshipDetails: (internshipId) => ["internshipDetails", String(internshipId || "")],
   courseEnrollmentStatus: (studentId, courseId) => [
     "courseEnrollmentStatus",
     Number(studentId) || 0,

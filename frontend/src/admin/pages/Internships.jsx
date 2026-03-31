@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addInternship,
@@ -28,6 +28,11 @@ const formatDate = (value) => {
   return parsed.toLocaleDateString("en-GB");
 };
 
+const isPaidCategory = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase() === "paid";
+
 const normalizeInternship = (internship) => ({
   ...internship,
   position: internship.title || internship.role || "",
@@ -47,7 +52,8 @@ const normalizeInternship = (internship) => ({
 
 function Internships() {
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editInternshipIdParam = searchParams.get("edit");
   const initialForm = useMemo(
     () => ({
       title: "",
@@ -150,6 +156,18 @@ function Internships() {
   }, [navbarSearch]);
 
   useEffect(() => {
+    setAppliedSearch(searchInput);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setAppliedDuration(durationInput);
+  }, [durationInput]);
+
+  useEffect(() => {
+    setAppliedStatus(statusInput);
+  }, [statusInput]);
+
+  useEffect(() => {
     if (!showForm) return;
 
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -179,6 +197,34 @@ function Internships() {
     });
     setShowForm(true);
   };
+
+  const clearEditQueryParam = () => {
+    if (!searchParams.get("edit")) return;
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData(initialForm);
+    clearEditQueryParam();
+  };
+
+  useEffect(() => {
+    if (!editInternshipIdParam) return;
+
+    const matchingInternship = internshipList.find(
+      (item) => Number(item.id) === Number(editInternshipIdParam),
+    );
+
+    if (!matchingInternship || showForm || isEditing) return;
+
+    handleEdit(matchingInternship);
+    clearEditQueryParam();
+  }, [editInternshipIdParam, internshipList, showForm, isEditing]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -221,9 +267,7 @@ function Internships() {
         ? "Internship updated successfully."
         : "Internship added successfully.",
     );
-    setShowForm(false);
-    setEditingId(null);
-    setFormData(initialForm);
+    handleCloseForm();
   };
 
   const handleDelete = (id) => {
@@ -256,6 +300,15 @@ function Internships() {
     setAppliedStatus(statusInput);
   };
 
+  const handleClearFilter = () => {
+    setSearchInput("");
+    setDurationInput("");
+    setStatusInput("");
+    setAppliedSearch("");
+    setAppliedDuration("");
+    setAppliedStatus("");
+  };
+
   return (
     <div className="space-y-8">
       <Toast toast={toast} />
@@ -284,11 +337,7 @@ function Internships() {
             <motion.div
               className="fixed inset-0 bg-slate-900/45 z-40"
               variants={modalBackdropVariants}
-              onClick={() => {
-                setShowForm(false);
-                setEditingId(null);
-                setFormData(initialForm);
-              }}
+              onClick={handleCloseForm}
               aria-hidden="true"
             />
 
@@ -303,11 +352,7 @@ function Internships() {
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingId(null);
-                    setFormData(initialForm);
-                  }}
+                  onClick={handleCloseForm}
                   className="text-sm px-3 py-1.5 border border-gray-300 hover:bg-gray-100 rounded-sm cursor-pointer"
                 >
                   Close
@@ -476,11 +521,7 @@ function Internships() {
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     type="button"
-                    onClick={() => {
-                      setShowForm(false);
-                      setEditingId(null);
-                      setFormData(initialForm);
-                    }}
+                    onClick={handleCloseForm}
                     className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 text-sm font-semibold transition-colors rounded-sm cursor-pointer"
                   >
                     Cancel
@@ -540,6 +581,15 @@ function Internships() {
         >
           Apply Filter
         </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          type="button"
+          onClick={handleClearFilter}
+          className="border border-gray-300 hover:bg-gray-100 text-gray-700 px-6 py-2 rounded-none text-sm font-bold transition-colors rounded-sm cursor-pointer"
+        >
+          Clear Filter
+        </motion.button>
       </div>
 
       <div className="bg-white rounded-lg shadow">
@@ -573,7 +623,12 @@ function Internships() {
               {filteredInternships.map((internship, index) => (
                 <tr key={`${internship.id}-${index}`} className="border-t">
                   <td className="p-4 font-medium text-gray-900">
-                    {internship.position || "-"}
+                    <Link
+                      to={`/admin/internships/${internship.id}`}
+                      className="text-red-600 hover:text-red-700 hover:underline"
+                    >
+                      {internship.position || "-"}
+                    </Link>
                   </td>
                   <td className="p-4 text-sm text-gray-600">
                     {internship.durationValue
@@ -587,7 +642,8 @@ function Internships() {
                     {internship.workTypeValue || "-"}
                   </td>
                   <td className="p-4 text-sm text-gray-600">
-                    {internship.stipendValue
+                    {isPaidCategory(internship.categoryValue) &&
+                    internship.stipendValue
                       ? `₹${Number(internship.stipendValue).toLocaleString()}/month`
                       : "Unpaid"}
                   </td>

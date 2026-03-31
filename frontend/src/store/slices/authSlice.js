@@ -1,4 +1,4 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, createSelector } from "@reduxjs/toolkit";
 import { getCurrentUser } from "../../api/authApi";
 
 const STUDENT_AUTH_KEY = "student_auth";
@@ -183,10 +183,9 @@ export const selectCurrentUser = (state) => state.auth.user;
 export const selectIsStudent = (state) =>
   state.auth.role === "student" && Boolean(state.auth.user?.id);
 export const selectStudentId = (state) => state.auth.user?.id || null;
-export const selectStudentInfo = (state) => {
-  const user = state.auth.user;
-
-  return {
+export const selectStudentInfo = createSelector(
+  [(state) => state.auth.user],
+  (user) => ({
     id: user?.id || null,
     name: user?.name || "Student",
     subtitle: user?.domain || "Welcome back",
@@ -195,18 +194,17 @@ export const selectStudentInfo = (state) => {
     education: user?.education || "",
     college: user?.college || "",
     phone: user?.phone || "",
-  };
-};
+  })
+);
 
-export const selectAdminInfo = (state) => {
-  const user = state.auth.user;
-
-  return {
+export const selectAdminInfo = createSelector(
+  [(state) => state.auth.user],
+  (user) => ({
     id: user?.id || null,
     name: user?.name || "Admin",
     email: user?.email || "admin@example.com",
     subtitle: "Super Admin",
-  };
-};
+  })
+);
 
 export default authSlice.reducer;

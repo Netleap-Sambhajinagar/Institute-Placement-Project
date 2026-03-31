@@ -10,10 +10,15 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { logoutUser } from "../../api/authApi";
 import { clearAuth, selectAdminInfo } from "../../store/slices/authSlice";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const searchableAdminRoutes = new Set([
   "/admin/students",
@@ -29,6 +34,18 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   const adminInfo = useSelector(selectAdminInfo);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [showAddAdminForm, setShowAddAdminForm] = useState(false);
+  const [adminForm, setAdminForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    setupKey: "",
+  });
+  const [adminError, setAdminError] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showSetupKey, setShowSetupKey] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -87,6 +104,83 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
   const handleSearchSubmit = (event) => {
     event.preventDefault();
     updateSearchRoute(searchValue);
+  };
+
+  const handleOpenAddAdminForm = () => {
+    setShowAddAdminForm(true);
+    setAdminForm({ name: "", email: "", password: "", setupKey: "" });
+    setAdminError("");
+    setShowAdminPassword(false);
+    setShowSetupKey(false);
+  };
+
+  const handleCloseAddAdminForm = () => {
+    setShowAddAdminForm(false);
+    setAdminForm({ name: "", email: "", password: "", setupKey: "" });
+    setAdminError("");
+    setShowAdminPassword(false);
+    setShowSetupKey(false);
+  };
+
+  const handleAdminFormChange = (e) => {
+    const { name, value } = e.target;
+    setAdminForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    setAdminError("");
+
+    if (!adminForm.name.trim()) {
+      setAdminError("Name is required.");
+      return;
+    }
+
+    if (!adminForm.email.trim()) {
+      setAdminError("Email is required.");
+      return;
+    }
+
+    if (!adminForm.password.trim()) {
+      setAdminError("Password is required.");
+      return;
+    }
+
+    if (!adminForm.setupKey.trim()) {
+      setAdminError("Super key is required.");
+      return;
+    }
+
+    try {
+      setAdminLoading(true);
+      const response = await fetch("/api/auth/admin/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: adminForm.name.trim(),
+          email: adminForm.email.trim(),
+          password: adminForm.password.trim(),
+          setupKey: adminForm.setupKey.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(
+          error.message || error.error || "Failed to register admin",
+        );
+      }
+
+      alert("Admin registered successfully!");
+      handleCloseAddAdminForm();
+      setShowSettingsMenu(false);
+    } catch (error) {
+      setAdminError(error.message || "Failed to add admin.");
+    } finally {
+      setAdminLoading(false);
+    }
   };
 
   return (
@@ -186,33 +280,209 @@ export default function Navbar({ onOpenSidebar = () => {} }) {
           </div>
 
           <nav className="mt-5 space-y-2">
-            {/* <motion.button whileTap={{ scale: 0.9 }}
-              type="button"
-              className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 text-gray-700 flex items-center gap-2 rounded-sm cursor-pointer"
-            >
-              <ShieldCheck size={18} />
-              Account Security
-            </motion.button> */}
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="button"
-              className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 text-gray-700 flex items-center gap-2 rounded-sm cursor-pointer"
-            >
-              <Settings size={18} />
-              Settings
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              type="button"
-              onClick={handleLogout}
-              className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-red-50 text-red-600 flex items-center gap-2 rounded-sm cursor-pointer"
-            >
-              <LogOut size={18} />
-              Logout
-            </motion.button>
+            {!showAddAdminForm ? (
+              <>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  type="button"
+                  onClick={() => setShowSettingsMenu((prev) => !prev)}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-100 text-gray-700 flex items-center justify-between gap-2 rounded-sm cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Settings size={18} />
+                    Settings
+                  </span>
+                  {showSettingsMenu ? (
+                    <ChevronDown size={16} className="text-gray-500" />
+                  ) : (
+                    <ChevronRight size={16} className="text-gray-500" />
+                  )}
+                </motion.button>
+
+                <AnimatePresence initial={false}>
+                  {showSettingsMenu ? (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="ml-5 mt-1 border-l border-gray-200 pl-3 overflow-hidden"
+                    >
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        type="button"
+                        onClick={handleOpenAddAdminForm}
+                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-50 text-red-600 flex items-center gap-2 rounded-sm cursor-pointer"
+                      >
+                        <Plus size={16} />
+                        Add Admin
+                      </motion.button>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-red-50 text-red-600 flex items-center gap-2 rounded-sm cursor-pointer"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </motion.button>
+              </>
+            ) : null}
           </nav>
         </div>
       </aside>
+
+      {/* Add Admin Modal Popup */}
+      <AnimatePresence>
+        {showAddAdminForm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleCloseAddAdminForm}
+              className="fixed inset-0 bg-black/50 z-50"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            >
+              <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Register Admin
+                  </h2>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    type="button"
+                    onClick={handleCloseAddAdminForm}
+                    className="text-gray-500 hover:text-gray-700 transition"
+                    aria-label="Close form"
+                  >
+                    <X size={24} />
+                  </motion.button>
+                </div>
+
+                <form onSubmit={handleAddAdmin} className="space-y-4">
+                  {adminError && (
+                    <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                      {adminError}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={adminForm.name}
+                      onChange={handleAdminFormChange}
+                      placeholder="Admin name"
+                      className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                      disabled={adminLoading}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={adminForm.email}
+                      onChange={handleAdminFormChange}
+                      placeholder="admin@example.com"
+                      className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                      disabled={adminLoading}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showAdminPassword ? "text" : "password"}
+                        name="password"
+                        value={adminForm.password}
+                        onChange={handleAdminFormChange}
+                        placeholder="Password"
+                        className="w-full border border-gray-300 px-3 py-2 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                        disabled={adminLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowAdminPassword((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
+                        aria-label={showAdminPassword ? "Hide password" : "Show password"}
+                        disabled={adminLoading}
+                      >
+                        {showAdminPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Super Key
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showSetupKey ? "text" : "password"}
+                        name="setupKey"
+                        value={adminForm.setupKey}
+                        onChange={handleAdminFormChange}
+                        placeholder="Enter super key"
+                        className="w-full border border-gray-300 px-3 py-2 pr-10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                        disabled={adminLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSetupKey((prev) => !prev)}
+                        className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
+                        aria-label={showSetupKey ? "Hide super key" : "Show super key"}
+                        disabled={adminLoading}
+                      >
+                        {showSetupKey ? <Eye size={18} /> : <EyeOff size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      type="button"
+                      onClick={handleCloseAddAdminForm}
+                      disabled={adminLoading}
+                      className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition disabled:opacity-50"
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.95 }}
+                      type="submit"
+                      disabled={adminLoading}
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition disabled:opacity-50"
+                    >
+                      {adminLoading ? "Adding..." : "Add Admin"}
+                    </motion.button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }

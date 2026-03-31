@@ -14,6 +14,16 @@ export const getInternships = async () => {
   }
 };
 
+export const getInternshipById = async (id) => {
+  try {
+    const response = await client.get(`/internships/${id}`);
+    return response.data?.data || response.data;
+  } catch (error) {
+    console.error("Failed to get internship details", error);
+    return null;
+  }
+};
+
 export const saveInternships = async (internships) => {
   // Optional implementation if batch saving is needed, skipping for REST normally
 };

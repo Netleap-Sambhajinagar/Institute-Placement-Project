@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { registerSendOtp, registerVerifyOtp } from "../api/authApi";
+import { useDispatch } from "react-redux";
+import { setStudentAuth } from "../store/slices/authSlice";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Register() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   // Step 1: Registration Form State
   const [formData, setFormData] = useState({
@@ -28,6 +32,7 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -60,8 +65,10 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await registerVerifyOtp(formData.email, otp);
-      // Registration complete, navigate to dashboard
+      const data = await registerVerifyOtp(formData.email, otp);
+      if (data && data.student) {
+        dispatch(setStudentAuth(data.student));
+      }
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Invalid OTP or OTP expired.");
@@ -110,7 +117,7 @@ export default function Register() {
                   value={formData.name}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
-                  placeholder="John Doe"
+                  placeholder="Enter your name"
                 />
               </div>
               <div>
@@ -124,7 +131,7 @@ export default function Register() {
                   value={formData.email}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
-                  placeholder="john@example.com"
+                  placeholder="Enter your email"
                 />
               </div>
               <div>
@@ -138,22 +145,34 @@ export default function Register() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   className="w-full border border-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
-                  placeholder="9876543210"
+                  placeholder="Enter your phone number"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password *
                 </label>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-md px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transiton-colors"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 px-3 text-gray-500 hover:text-gray-700"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -225,10 +244,11 @@ export default function Register() {
               />
             </div>
 
-            <motion.button whileTap={{ scale: 0.9 }}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
-              className={`rounded-sm w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm transition-colors mt-6 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
+              className={`rounded-sm w-full py-2.5 cursor-pointer px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm transition-colors mt-6 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}
             >
               {loading ? "Sending OTP..." : "Register & Send OTP"}
             </motion.button>
@@ -252,7 +272,8 @@ export default function Register() {
               />
             </div>
 
-            <motion.button whileTap={{ scale: 0.9 }}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
               type="submit"
               disabled={loading || otp.length < 6}
               className={`rounded-sm w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow-sm transition-colors mt-4 ${loading || otp.length < 6 ? "opacity-70 cursor-not-allowed" : ""}`}
@@ -261,7 +282,8 @@ export default function Register() {
             </motion.button>
 
             <div className="text-center mt-4">
-              <motion.button whileTap={{ scale: 0.9 }}
+              <motion.button
+                whileTap={{ scale: 0.9 }}
                 type="button"
                 onClick={() => {
                   setStep(1);
